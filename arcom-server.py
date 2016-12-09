@@ -162,8 +162,6 @@ class Arcom(object):
   def restart(self, auth):
     self.authlog(auth, "Restart")
     self.cmdSend(cfg.get('arcom-commands', 'restart'))
-    self.port1Enabled = True
-    self.port3Bridged = True
     return True
 
   def setDateTime(self, auth):
