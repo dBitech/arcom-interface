@@ -1,0 +1,66 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:        arcom
+# Required-Start:  $network $syslog udev
+# Required-Stop:   $network $syslog udev
+# Default-Start:   2 3 4 5
+# Default-Stop: 
+# Short-Description: Start ARCOM daemon
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+. /lib/lsb/init-functions
+
+RUNASUSER=arcom
+RUNDIR=$(getent passwd $RUNASUSER | cut -f 6 -d:) || true
+DAEMON="$RUNDIR/arcom-server.py"
+PIDFILE="$RUNDIR/arcom.pid"
+ARCOM_OPTS="--pidfile=$PIDFILE"
+
+case $1 in
+	start)
+		log_daemon_msg "Starting ARCOM server" "arcom-server"
+		if [ -z "$RUNDIR" ]; then
+			log_failure_msg "user \"$RUNASUSER\" does not exist"
+			exit 1
+		elif [ ! -d "$RUNDIR" ]; then
+			log_failure_msg "home directory \"$RUNDIR\" does not exist"
+			exit 1
+		elif [ ! -x "$DAEMON" ]; then
+			log_failure_msg "\"$DAEMON\" is not present or executable"
+			exit 1
+		fi
+  		start-stop-daemon --start --background --verbose --oknodo --pidfile $PIDFILE \
+                  --no-close --chdir $RUNDIR --chuid $RUNASUSER --startas $DAEMON -- $ARCOM_OPTS
+		status=$?
+		log_end_msg $status
+  		;;
+	stop)
+		log_daemon_msg "Stopping ARCOM server" "arcom-server"
+  		start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+		log_end_msg $?
+		rm -f $PIDFILE
+  		;;
+	restart|force-reload)
+		$0 stop && sleep 2 && $0 start
+  		;;
+	try-restart)
+		if $0 status >/dev/null; then
+			$0 restart
+		else
+			exit 0
+		fi
+		;;
+	reload)
+		exit 3
+		;;
+	status)
+		status_of_proc $DAEMON "ARCOM server"
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+		exit 2
+		;;
+esac
