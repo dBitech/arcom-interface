@@ -8,7 +8,7 @@
    http://www.apache.org/licenses/LICENSE-2.0.txt
 
    Reference: RCP Protocol and Serial Port Operations
-   (available from the Arcom website)
+   http://www.arcomcontrollers.com/images/documents/rc210/rcpprotocol.pdf
   
 """
 import datetime
