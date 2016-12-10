@@ -18,49 +18,11 @@ import time
 import xmlrpclib
 from time import sleep
 from configparser import ConfigParser
-import requests
 
 config_file = '.arcom.conf'
 testing = True
 verbose = 1
 Valid_Options = ['testing=', 'verbose=']
-
-
-class LogPSRG(object):
-  """Post the event(s) to Google interference log.
-     Currently, way too much stuff is hardcoded.  We need a solution
-     to this that still keeps it simple for the control operator.
-  """
-  url_base = ''
-  form_data = {}
-  user_agent = {
-      'User-Agent':'Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 '
-                   '(KHTML, like Gecko) Chrome/28.0.1500.52 Safari/537.36'
-      }
-
-  def __init__(self, cfg):
-    self.url_base = cfg.get('google form', 'url_base')
-    self.form_data['entry.773252163'] = cfg.get('arcom', 'location')
-    self.form_data['entry.1984381604'] = cfg.get('arcom', 'call'),
-    self.form_data['draftResponse'] = []
-    self.form_data['pageHistory'] = 0
-    for entry in cfg.items('google form'):
-      key, value = entry
-      self.form_data[key] = value
-    self.user_agent['Referer'] = self.url_base + '/viewform'
-
-  def log(self, mins):
-    if not testing:
-      self.form_data['entry.530211156'] = 'Yes - ' + str(mins) + ' min'
-      resp = requests.post(self.url_base+'/formResponse',
-                           data=self.form_data,
-                           headers=self.user_agent)
-      if resp.status_code == 200:
-        print "Action logged to Google."
-      else:
-        print "Logging to Google failed: %s" % resp.status_code
-    else:
-      print "Action NOT logged.  (Testing mode)"
 
 
 def countdown(t):
@@ -84,7 +46,6 @@ def interact(cfg):
      We pass in a configuration object which must at a minimum have callsign (call).
   """
   arcom = xmlrpclib.ServerProxy("http://localhost:45000")
-  log = LogPSRG(cfg)
   call = cfg.get('arcom', 'call')
   if not re.match(r'[A-Za-z]+\d[A-Za-z]+', call):
     print "No call specified in .arcom.conf (e.g. call = N7AAA)."
@@ -121,15 +82,18 @@ def interact(cfg):
     """
     if ask_confirm("Are you SURE? [Action will be logged.]\n", "no"):
       print "DISABLING Port 1 XMIT - %02d:00 Minutes" % minutes
-      log.log(minutes)
       arcom.port1Disable(call)
+      arcomlogInterference(minutes)
       countdown(minutes*60)
       arcom.port1Enable(call)
       print "\rPort 1 XMIT RE-ENABLED"
 
   def printStatus(status):
     for key, value in sorted(status.items()):
-      print " | %-16.16s %-27.27s |" % (key, value)
+      if key == 'testing' and value:
+        print " |             TESTING MODE!                    |"
+      else:
+        print " | %-16.16s %-27.27s |" % (key, value)
 
   def print_menu(status):       ## Your menu design here
     """Render the menu."""

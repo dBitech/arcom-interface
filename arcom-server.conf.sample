@@ -1,0 +1,25 @@
+; Sample config file for arcom-server.py.
+; Values are dumbied.  You will need to update for your system.
+[arcom-server]
+serialDevice = /dev/ttyUSB0
+identity = WW1AAA/R
+
+; These are the command codes sent over the Arcom 210 serial port.
+[arcom-commands]
+port1Disable = **4321
+port1Enable = **5566
+port3Unbridge = **2323
+port3Bridge = **2324
+restart = **99998
+setDate = 5101
+setTime = 5100
+
+; You will need to configure the entry.NNNN lines for your Google form.
+; You always need a url_base.  You may have more or less entries here.
+[google form]
+url_base = 'https://docs.google.com/forms/d/e/abcdefghijklmnopqrstuvwxyz0123456789'
+entry.1621432189 = 'Now'
+entry.148579276 = 'Didn\'t Check'
+entry.1883387350 = 'Identity1'
+entry.640728518 = '146.67 (W1AW/R)'
+entry.599182666 = 'Submission via arcom-server.py'
