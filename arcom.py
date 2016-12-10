@@ -102,7 +102,7 @@ def interact(cfg):
     print " ", 8 * "-", "%6.6s - Arcom RC210 Control" % identity, 8 * "-"
     printStatus(status)
     print " |", 44 * " ", "|"
-    print " | 0.  Exit                                     |"
+    print " | 0.  Quit                                     |"
     print " | 1.  DISABLE Port 1 XMIT - 05:00 Minutes      |"
     print " | 2.  DISABLE Port 1 XMIT - 10:00 Minutes      |"
     print " | 3.  DISABLE Port 1 XMIT - 15:00 Minutes      |"
