@@ -21,6 +21,7 @@ import time
 from time import sleep
 from configparser import ConfigParser
 import serial
+import weblog_Google as weblog
 
 try:
   from xmlrpc.server import SimpleXMLRPCServer       # Python 3
@@ -68,6 +69,7 @@ class Arcom(object):
      """
   def __init__(self, device):
     """open and configure serial port"""
+    self.weblog = weblog.LogGoogle(cfg, testing)
     self.log_entries = load_log_entries(LOG_HISTORY_SIZE)
     self.port1Enabled = True
     self.port3Bridged = True
@@ -95,6 +97,7 @@ class Arcom(object):
     server.register_function(self.status)
     server.register_function(self.getLog)
     server.register_function(self.getIdentity)
+    server.register_function(self.logInterference)
 
   def authlog(self, auth, string, history=True):
     """We log to a file and the in memory queue."""
@@ -123,7 +126,7 @@ class Arcom(object):
     clrBuff()
     sleep(0.1)
     command = "1*" + command + "\r\n"
-    print " Sending: " + command
+    log.debug(" Sending: %s", command)
     self.serialport.write(command)
     if not testing:
       sleep(0.1)
@@ -162,13 +165,10 @@ class Arcom(object):
   def restart(self, auth):
     self.authlog(auth, "Restart")
     self.cmdSend(cfg.get('arcom-commands', 'restart'))
-    self.port1Enabled = True
-    self.port3Bridged = True
     return True
 
   def setDateTime(self, auth):
     self.authlog(auth, "Set Date/Time")
-    print "SETTING DATE/TIME"
     now = datetime.datetime.now()
     datestring = now.strftime("%m%d%y")
     timestring = now.strftime("%H%M%S")
@@ -194,6 +194,9 @@ class Arcom(object):
   def getIdentity(self, auth):
     self.authlog(auth, "Identity", history=False)
     return self.identity
+
+  def logInterference(self, minutes):
+    self.weblog.log(minutes)
 
 
 Valid_Options = ['device=', 'pidfile=', 'testing=', 'verbose=']
