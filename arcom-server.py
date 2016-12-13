@@ -33,7 +33,7 @@ defaults = {
 }
 
 LOG_HISTORY_SIZE = 100
-testing = True
+testing = False
 verbose = 1
 arcomDebugFile = 'arcom.commands'
 logging.basicConfig(
@@ -73,7 +73,7 @@ class Arcom(object):
     self.log_entries = load_log_entries(LOG_HISTORY_SIZE)
     self.port1Enabled = True
     self.port3Bridged = True
-    self.identity = cfg.get('arcom-server', 'identity')
+    self.identity = cfg.get('arcom server', 'identity')
     if not testing:
       self.serialport = serial.Serial(
           port=device,
@@ -109,77 +109,101 @@ class Arcom(object):
 
   def cmdSend(self, command):
     """Sends one command to the controller after clearing stream."""
+    status = False
 
     def clrBuff():
       """Swallow any pending output from the controller."""
       if testing:
         return
-      indata = ""
+      indata = ''
       count = 0
       while count < 5:
         indata = self.serialport.readline()
         if verbose:
-          log.debug("clrBuff received: %s", indata)
+          log.debug('clrBuff received: %s', indata)
         count += 1
-      self.serialport.write("\r")
+      self.serialport.write('\r')
 
     clrBuff()
     sleep(0.1)
-    command = "1*" + command + "\r\n"
-    log.debug(" Sending: %s", command)
+    command = '1*' + command + '\r\n'
+    log.debug(' Sending: %s', command)
     self.serialport.write(command)
-    if not testing:
-      sleep(0.1)
-      indata = self.serialport.readline()
-      print "Received: " + indata
-      if indata.startswith("+" + command[0:5]):
-        log.debug("Command succeeded: %s", command)
-      if indata.startswith("-" + command[0:5]):
-        log.debug("Command failed: %s", command)
-      clrBuff()
+    if testing:
+      self.serialport.flush()
+      return True, 'TESTING MODE'
 
-  def port1Disable(self, auth):
-    self.authlog(auth, "Port 1 OFF")
-    self.cmdSend(cfg.get('arcom-commands', 'port1Disable'))
-    self.port1Enabled = False
-    return True
+    sleep(0.1)
+    indata = self.serialport.readline()
+    print 'Received: ' + indata
+    if indata.startswith("+" + command[0:5]):
+      msg = 'succeeded'
+      status = True
+    elif indata.startswith("-" + command[0:5]):
+      msg = 'failed: %s' % command
+    else:
+      msg = "unexpected response: %s" % command
+    log.debug(msg)
+    clrBuff()
+    return status, msg
+
+  def port1Disable(self, auth, interval=0):
+    self.authlog(auth, 'Port 1 OFF')
+    status, msg = self.cmdSend(cfg.get('arcom commands', 'port1Disable'))
+    if status:
+      self.port1Enabled = False
+    if interval > 0:
+      #TODO(dpk): implement
+      pass
+    return status, msg
 
   def port1Enable(self, auth):
-    self.authlog(auth, "Port 1 ON")
-    self.cmdSend(cfg.get('arcom-commands', 'port1Enable'))
-    self.port1Enabled = True
-    return True
+    self.authlog(auth, 'Port 1 ON')
+    status, msg = self.cmdSend(cfg.get('arcom commands', 'port1Enable'))
+    if status:
+      self.port1Enabled = True
+    return status, msg
 
   def port3Unbridge(self, auth):
-    self.authlog(auth, "Unbridge Port 1-3")
-    self.cmdSend(cfg.get('arcom-commands', 'port3Unbridge'))
-    self.port3Bridged = False
-    return True
+    self.authlog(auth, 'Unbridge Port 1-3')
+    status, msg = self.cmdSend(cfg.get('arcom commands', 'port3Unbridge'))
+    if status:
+      self.port3Bridged = False
+    return status, msg
 
   def port3Bridge(self, auth):
-    self.authlog(auth, "Bridge Port 1-3")
-    self.cmdSend(cfg.get('arcom-commands', 'port3Bridge'))
-    self.port3Bridged = True
-    return True
+    self.authlog(auth, 'Bridge Port 1-3')
+    status, msg = self.cmdSend(cfg.get('arcom commands', 'port3Bridge'))
+    if status:
+      self.port3Bridged = True
+    return status, msg
 
   def restart(self, auth):
-    self.authlog(auth, "Restart")
-    self.cmdSend(cfg.get('arcom-commands', 'restart'))
-    return True
+    self.authlog(auth, 'Restart')
+    return self.cmdSend(cfg.get('arcom commands', 'restart'))
 
   def setDateTime(self, auth):
-    self.authlog(auth, "Set Date/Time")
+    self.authlog(auth, 'Set Date/Time')
     now = datetime.datetime.now()
-    datestring = now.strftime("%m%d%y")
-    timestring = now.strftime("%H%M%S")
-    datestring = cfg.get('arcom-commands', 'setDate') + datestring
-    timestring = cfg.get('arcom-commands', 'setTime') + timestring
-    self.cmdSend(datestring)
+    datestring = now.strftime('%m%d%y')
+    timestring = now.strftime('%H%M%S')
+    datestring = cfg.get('arcom commands', 'setDate') + datestring
+    timestring = cfg.get('arcom commands', 'setTime') + timestring
+    status, msg = self.cmdSend(datestring)
+    if not status:
+      return status, msg
     sleep(.5)
     self.cmdSend(timestring)
-    return True
+    if status:
+      return True, "Date/Time set to (%s, %s)" % (datestring[-6:], timestring[-6:])
+    else:
+      return status, msg
+
+  def logInterference(self, call, location, minutes):
+    return self.weblog.log(call, location, minutes)
 
   def status(self, auth):
+    """Non-Standard: returns status and dict"""
     self.authlog(auth, "Status Request", history=False)
     return {
         'port1Enabled': self.port1Enabled,
@@ -188,24 +212,22 @@ class Arcom(object):
         }
 
   def getLog(self, auth, num_entries):
+    """Non-Standard: returns status and array"""
     self.authlog(auth, "Log Request - %d entries" % num_entries)
     return self.log_entries[-num_entries:]
 
   def getIdentity(self, auth):
-    self.authlog(auth, "Identity", history=False)
+    self.authlog(auth, 'Identity', history=False)
     return self.identity
 
-  def logInterference(self, minutes):
-    self.weblog.log(minutes)
 
-
-Valid_Options = ['device=', 'pidfile=', 'testing=', 'verbose=']
+Valid_Options = ['device=', 'pidfile=', 'port=', 'testing=', 'verbose=']
 
 def usage(error_msg=None):
   """Print the error and a usage message, then exit."""
   if error_msg:
     print '%s' % error_msg
-  print 'Usage: %s [options] input output_prefix' % sys.argv[0]
+  print 'Usage: %s [options]' % sys.argv[0]
   for option in Valid_Options:
     print '  --%s' % option
   sys.exit(1)
@@ -214,9 +236,10 @@ def main():
   """Main module - parse args and start server"""
   global testing, verbose
   pidfile = ''
+  port = 45000
 
   cfg.read('arcom-server.conf')
-  serialDevice = cfg.get('arcom-server', 'serialDevice')
+  serialDevice = cfg.get('arcom server', 'serialDevice')
 
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'v', Valid_Options)
@@ -228,8 +251,10 @@ def main():
       serialDevice = value
     if flag == '--pidfile':
       pidfile = value
+    if flag == '--port':
+      port = int(value)
     if flag == '--testing':
-      testing = bool(value)
+      testing = value in ('True', '1', 'y')
     if flag == '--verbose':
       verbose = int(value)
     if flag == '-v':
@@ -237,17 +262,17 @@ def main():
 
   if pidfile:
     log.debug('pid %d, pidfile %s', os.getpid(), pidfile)
-    f = open(pidfile, "w")
+    f = open(pidfile, 'w')
     try:
       fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError, e:
-      log.fatal("Unable to acquire lock on %s: %s", pidfile, e)
+      log.fatal('Unable to acquire lock on %s: %s', pidfile, e)
       sys.exit(99)
     f.write("%d\n" % os.getpid())
     f.flush()
 
   arcom = Arcom(serialDevice)
-  server = ArcomXMLRPCServer(("", 45000))
+  server = ArcomXMLRPCServer(('', port))
   arcom.register_methods(server)
   server.serve_forever()
 

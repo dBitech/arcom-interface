@@ -20,25 +20,25 @@ class LogGoogle(object):
   def __init__(self, cfg, testing):
     self.testing = testing
     self.url_base = cfg.get('google form', 'url_base')
-    self.form_data['entry.773252163'] = cfg.get('arcom', 'location')
-    self.form_data['entry.1984381604'] = cfg.get('arcom', 'call'),
-    self.form_data['draftResponse'] = []
-    self.form_data['pageHistory'] = 0
     for entry in cfg.items('google form'):
       key, value = entry
       self.form_data[key] = value
+    self.form_data['draftResponse'] = []
+    self.form_data['pageHistory'] = 0
     self.user_agent['Referer'] = self.url_base + '/viewform'
 
-  def log(self, mins):
+  def log(self, call, location, minutes):
     """Post an interference report to Google form."""
     if not self.testing:
-      self.form_data['entry.530211156'] = 'Yes - ' + str(mins) + ' min'
+      self.form_data['entry.1984381604'] = call
+      self.form_data['entry.773252163'] = location
+      self.form_data['entry.530211156'] = 'Yes - ' + str(minutes) + ' min'
       resp = requests.post(self.url_base+'/formResponse',
                            data=self.form_data,
                            headers=self.user_agent)
       if resp.status_code == 200:
-        print "Action logged to Google."
+        return True, "Action logged to Google."
       else:
-        print "Logging to Google failed: %s" % resp.status_code
+        return False, "Logging to Google failed: %s" % resp.status_code
     else:
-      print "Action NOT logged.  (Testing mode)"
+      return True, "Action NOT logged.  (Testing mode)"

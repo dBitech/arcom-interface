@@ -22,7 +22,6 @@ from configparser import ConfigParser
 config_file = '.arcom.conf'
 testing = True
 verbose = 1
-Valid_Options = ['testing=', 'verbose=']
 
 
 def countdown(t):
@@ -33,7 +32,7 @@ def countdown(t):
     try:
       mins, secs = divmod(t, 60)
       timeformat = '{:02d}:{:02d}'.format(mins, secs)
-      sys.stdout.write("\rCountdown: " + timeformat + "< [CTRL+C to re-enable]")
+      sys.stdout.write("\rCountdown: " + timeformat + "  [CTRL+C to re-enable]")
       sys.stdout.flush()
       sleep(1)
       t -= 1
@@ -41,27 +40,27 @@ def countdown(t):
       print ""
       break
 
-def interact(cfg):
+def interact(port, cfg):
   """Main user interaction loop.
      We pass in a configuration object which must at a minimum have callsign (call).
   """
-  arcom = xmlrpclib.ServerProxy("http://localhost:45000")
+  arcom = xmlrpclib.ServerProxy("http://localhost:%s" % port)
   call = cfg.get('arcom', 'call')
   if not re.match(r'[A-Za-z]+\d[A-Za-z]+', call):
-    print "No call specified in .arcom.conf (e.g. call = N7AAA)."
-    return
+    raise RuntimeError('Format error for call in .arcom.conf.')
+  location = cfg.get('arcom', 'location')
   identity = arcom.getIdentity(call)
 
   def ask_confirm(question, default):
     """Prompt for user yes/no response with a possible default"""
-    valid = {"yes": True, "y": True, "ye": True,
-             "no": False, "n": False}
+    valid = {'yes': True, 'y': True, 'ye': True,
+             'no': False, 'n': False}
     if default is None:
-      prompt = " [y/n] "
-    elif default == "yes":
-      prompt = " [Y/n] "
-    elif default == "no":
-      prompt = " [y/N] "
+      prompt = ' [y/n] '
+    elif default == 'yes':
+      prompt = ' [Y/n] '
+    elif default == 'no':
+      prompt = ' [y/N] '
     else:
       raise ValueError("invalid default answer: '%s'" % default)
 
@@ -73,20 +72,26 @@ def interact(cfg):
       elif choice in valid:
         return valid[choice]
       else:
-        sys.stdout.write("Please respond with 'yes' or 'no' "
-                         "(or 'y' or 'n').\n")
+        sys.stdout.write(
+            "Please respond with 'yes' or 'no' (or 'y' or 'n').\n")
+
+  def print_failure(command, result):
+    status, msg = result
+    if not status:
+      print "%s failed: %s" % (command, msg)
 
   def disable_for_minutes(minutes):
     """Disable for specified number of seconds.
        If the users interrupts the countdown, re-enable immediately.
     """
-    if ask_confirm("Are you SURE? [Action will be logged.]\n", "no"):
+    if ask_confirm('Are you SURE? [Action will be logged.]\n', 'no'):
       print "DISABLING Port 1 XMIT - %02d:00 Minutes" % minutes
-      arcom.port1Disable(call)
-      arcomlogInterference(minutes)
+      print_failure('port1Disable', arcom.port1Disable(call))
+      print_failure('logInterference', arcom.logInterference(call, location, minutes))
       countdown(minutes*60)
-      arcom.port1Enable(call)
-      print "\rPort 1 XMIT RE-ENABLED"
+      print_failure('port1Enable', arcom.port1Enable(call))
+      print '\rPort 1 XMIT RE-ENABLED'
+      return True
 
   def printStatus(status):
     for key, value in sorted(status.items()):
@@ -123,50 +128,61 @@ def interact(cfg):
       tm = time.localtime(seconds)
       print "%s [%s] %s" % (time.strftime('%x %X', tm), call, string)
 
+  def successString(status):
+    """Take boolean success status and return string."""
+    if status:
+      return "succeeded"
+    else:
+      return "failed"
+
   def dispatch(line):
     """Decide what do to.  Eventually table driven?"""
     try:
       choice = int(line)
     except ValueError:
       choice = 99
+    status = False
+    msg = ''
 
     if choice is 1:
-      disable_for_minutes(5)
+      return disable_for_minutes(5)
     elif choice is 2:
-      disable_for_minutes(10)
+      return disable_for_minutes(10)
     elif choice is 3:
-      disable_for_minutes(15)
+      return disable_for_minutes(15)
     elif choice is 4:
       print "DISABLING Port 1 XMIT"
       if ask_confirm("Are you SURE?\n", "no"):
-        arcom.port1Disable(call)
+        status, msg = arcom.port1Disable(call)
     elif choice is 5:
       print "ENABLING Port 1 XMIT"
-      arcom.port1Enable(call)
+      status, msg = arcom.port1Enable(call)
     elif choice is 6:
       print "UN-BRIDGING IRLP NODE Port 3</>1"
       if ask_confirm("Are you SURE?\n", "no"):
-        arcom.port3Unbridge(call)
+        status, msg = arcom.port3Unbridge(call)
     elif choice is 7:
       print "BRIDGING IRLP NODE Port 3<->1"
-      arcom.port3Bridge(call)
+      status, msg = arcom.port3Bridge(call)
     elif choice is 8:
       if ask_confirm("Are you SURE?\n", "no"):
         print "RESTARTING CONTROLLER"
-        arcom.restart(call)
+        status, msg = arcom.restart(call)
     elif choice is 9:
-      arcom.setDateTime(call)
+      status, msg = arcom.setDateTime(call)
     elif choice is 10:
       entries = arcom.getLog(call, 10)
       listLog(entries)
+      return True
     elif choice is 0:
-      print "Exiting"
+      print "Quitting"
       sys.exit(0)
     else:
-      # Any integer inputs other than values 1-5 we print an error message
-      raw_input("Invalid option selected. Choose an option, 0-10.\nContinue? ")
+      # Any other integer inputs print an error message
+      raw_input("Invalid option selected. Choose a valid number option.\nContinue? ")
       return False
-    return True
+    print "Command %s: %s" % (successString(status), msg)
+    return status
 
   while True:
     status = arcom.status(call)
@@ -178,11 +194,14 @@ def interact(cfg):
     except SyntaxError:
       continue
 
+
+Valid_Options = ['port=', 'testing=', 'verbose=']
+
 def usage(error_msg=None):
   """Print the error and a usage message, then exit."""
   if error_msg:
     print '%s' % error_msg
-  print 'Usage: %s [options] input output_prefix' % sys.argv[0]
+  print 'Usage: %s [options]' % sys.argv[0]
   for option in Valid_Options:
     print '  --%s' % option
   sys.exit(1)
@@ -190,9 +209,7 @@ def usage(error_msg=None):
 def main():
   """Main module - parse args and start server"""
   global testing, verbose
-  defaults = {
-      'location': 'Home'
-  }
+  port = 45000
 
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'v', Valid_Options)
@@ -200,18 +217,20 @@ def main():
   except getopt.GetoptError, error:
     usage(error)
   for flag, value in opts:
+    if flag == '--port':
+      port = int(value)
     if flag == '--testing':
-      testing = bool(value)
+      testing = value in ('True', '1', 'y')
     if flag == '--verbose':
       verbose = int(value)
     if flag == '-v':
       verbose += 1
 
   home_config_file = os.path.expandvars('$HOME/'+config_file)
-  cfg = ConfigParser(defaults)
+  cfg = ConfigParser()
   cfg.read((config_file, home_config_file))
 
-  interact(cfg)
+  interact(port, cfg)
 
 
 if __name__ == '__main__':
