@@ -113,6 +113,8 @@ def interact(port, cfg):
     for key, value in sorted(status.items()):
       if key == 'testing' and value:
         print " |             TESTING MODE!                    |"
+      elif key == 'autoEnableTime':
+        print " | auto-enable at %-29.29s |" % time.strftime('%H:%M:%S', value)
       else:
         print " | %-16.16s %-27.27s |" % (key, value)
 
