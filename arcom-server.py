@@ -178,6 +178,7 @@ class Arcom(object):
         log.info('[%s] Setting enable timer for %d seconds', auth, interval)
         self.enableTimer = threading.Timer(interval, self.port1Enable, [auth, True])
         self.enableTimer.start()
+        self.autoEnableTime = time.time() + float(interval)
     self.port1Lock.release()
     return status, msg
 
@@ -194,6 +195,7 @@ class Arcom(object):
       log.info('[%s] Timer cancelled', auth)
       self.enableTimer.cancel()
       self.enableTimer = None
+      self.autoEnableTime = None
     self.port1Lock.release()
     return status, msg
 
@@ -238,11 +240,14 @@ class Arcom(object):
   def status(self, auth):
     """Non-Standard: returns status and dict"""
     self.authlog(auth, "Status Request", history=False)
-    return {
+    status = {
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
         'testing': testing
         }
+    if self.autoEnableTime:
+      status['auto-enable'] = self.autoEnableTime
+    return status
 
   def getLog(self, auth, num_entries):
     """Non-Standard: returns status and array"""
