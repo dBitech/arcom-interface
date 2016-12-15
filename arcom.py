@@ -13,6 +13,7 @@
 import getopt
 import os
 import re
+import socket
 import sys
 import time
 import xmlrpclib
@@ -27,6 +28,7 @@ verbose = 1
 def countdown(t):
   """Count down t seconds printing the time in minutes:seconds.
      Allows users to interrupt out of the countdown.
+     Returns number of seconds remaining in from t if terminated early.
   """
   while t:
     try:
@@ -39,6 +41,7 @@ def countdown(t):
     except KeyboardInterrupt:
       print ""
       break
+  return t
 
 def interact(port, cfg):
   """Main user interaction loop.
@@ -49,14 +52,20 @@ def interact(port, cfg):
   if not re.match(r'[A-Za-z]+\d[A-Za-z]+', call):
     raise RuntimeError('Format error for call in .arcom.conf.')
   location = cfg.get('arcom', 'location')
-  identity = arcom.getIdentity(call)
+  identity = ''
+  while identity == '':
+    try:
+      identity = arcom.getIdentity(call)
+    except socket.error, e:
+      print "Server error: %s, sleeping 5" % e
+      sleep(5)
 
   def ask_confirm(question, default):
     """Prompt for user yes/no response with a possible default"""
     valid = {'yes': True, 'y': True, 'ye': True,
              'no': False, 'n': False}
     if default is None:
-      prompt = ' [y/n] '
+      prompt = ''
     elif default == 'yes':
       prompt = ' [Y/n] '
     elif default == 'no':
@@ -66,14 +75,21 @@ def interact(port, cfg):
 
     while True:
       sys.stdout.write(question + prompt)
-      choice = raw_input().lower()
-      if default is not None and choice == '':
+      try:
+        choice = raw_input().lower()
+      except (EOFError, KeyboardInterrupt):
+        print ""
+        sys.exit(0)
+
+      if default is None:
+        return choice
+      elif choice == '':
         return valid[default]
       elif choice in valid:
         return valid[choice]
       else:
         sys.stdout.write(
-            "Please respond with 'yes' or 'no' (or 'y' or 'n').\n")
+            "Please respond with 'y' or 'n'.\n")
 
   def print_failure(command, result):
     status, msg = result
@@ -86,11 +102,11 @@ def interact(port, cfg):
     """
     if ask_confirm('Are you SURE? [Action will be logged.]\n', 'no'):
       print "DISABLING Port 1 XMIT - %02d:00 Minutes" % minutes
-      print_failure('port1Disable', arcom.port1Disable(call))
+      print_failure('port1Disable', arcom.port1Disable(call, minutes*60))
       print_failure('logInterference', arcom.logInterference(call, location, minutes))
-      countdown(minutes*60)
-      print_failure('port1Enable', arcom.port1Enable(call))
-      print '\rPort 1 XMIT RE-ENABLED'
+      if countdown(minutes*60+1) > 0:
+        print_failure('port1Enable', arcom.port1Enable(call))
+      print ""
       return True
 
   def printStatus(status):
@@ -137,12 +153,15 @@ def interact(port, cfg):
 
   def dispatch(line):
     """Decide what do to.  Eventually table driven?"""
+    status = False
+    msg = ''
+
+    if line == "":
+      return False
     try:
       choice = int(line)
     except ValueError:
       choice = 99
-    status = False
-    msg = ''
 
     if choice is 1:
       return disable_for_minutes(5)
@@ -179,7 +198,7 @@ def interact(port, cfg):
       sys.exit(0)
     else:
       # Any other integer inputs print an error message
-      raw_input("Invalid option selected. Choose a valid number option.\nContinue? ")
+      ask_confirm("Invalid option selected. Choose a valid number option.\nContinue? ", None)
       return False
     print "Command %s: %s" % (successString(status), msg)
     return status
@@ -187,12 +206,16 @@ def interact(port, cfg):
   while True:
     status = arcom.status(call)
     print_menu(status)    ## Displays menu
+    choice = ask_confirm("Enter your choice [0-10]: ", None)
     try:
-      if dispatch(raw_input("Enter your choice [0-10]: ")):
+      if dispatch(choice):
         # This is just to keep the screen from repainting the menu.
-        ask_confirm("Continue?", "yes")
+        ask_confirm("Continue?", None)
     except SyntaxError:
       continue
+    except socket.error, e:
+      print "Server error: %s" % e
+      ask_confirm("Continue?", None)
 
 
 Valid_Options = ['port=', 'testing=', 'verbose=']
