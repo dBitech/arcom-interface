@@ -78,6 +78,7 @@ class Arcom(object):
     self.enableTimer = None
     self.port3Bridged = True
     self.identity = cfg.get('arcom server', 'identity')
+    self.autoEnableTime = None
     if not testing:
       self.serialport = serial.Serial(
           port=device,
@@ -241,8 +242,8 @@ class Arcom(object):
     """Non-Standard: returns status and dict"""
     self.authlog(auth, "Status Request", history=False)
     status = {
-        'port1Enabled': self.port1Enabled,
-        'port3Bridged': self.port3Bridged,
+        'Port 1 enabled': self.port1Enabled,
+        'Port 3 bridged': self.port3Bridged,
         'testing': testing
         }
     if self.autoEnableTime:
