@@ -258,7 +258,6 @@ class Arcom(object):
 def main():
   """Main module - parse args and start server"""
   global testing, verbose
-  pidfile = ''
 
   cfg.read('arcom-server.conf')
 
@@ -278,7 +277,7 @@ def main():
                  port=45000,
                  testing=False)
 
-  opt, args = p.parse_args()
+  opt, _ = p.parse_args()
 
   if opt.logtostderr:
     ch = logging.StreamHandler(sys.stderr)

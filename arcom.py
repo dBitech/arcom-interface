@@ -220,10 +220,12 @@ def interact(port, cfg):
 
 def main():
   """Main module - parse args and start server"""
+  global opt
+
   p = optparse.OptionParser()
   p.add_option('--port', action='store', type='int', dest='port')
   p.set_defaults(port=45000)
-  opt, args = p.parse_args()
+  opt, _ = p.parse_args()
 
   home_config_file = os.path.expandvars('$HOME/'+config_file)
   cfg = ConfigParser()
