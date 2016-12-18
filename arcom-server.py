@@ -13,7 +13,7 @@
 """
 import datetime
 import fcntl
-import getopt
+import optparse
 import logging
 import os
 import sys
@@ -35,12 +35,12 @@ defaults = {
 
 LOG_HISTORY_SIZE = 100
 testing = False
-verbose = 1
+verbose = 0
 arcomDebugFile = 'arcom.commands'
 logging.basicConfig(
     filename='arcom.log',
     format='%(levelname)-1s %(asctime)s %(message)s',
-    level=logging.DEBUG
+    level=logging.INFO
 )
 log = logging.getLogger('arcom')
 cfg = ConfigParser(defaults)
@@ -104,9 +104,9 @@ class Arcom(object):
     server.register_function(self.getIdentity)
     server.register_function(self.logInterference)
 
-  def authlog(self, auth, string, history=True):
+  def authlog(self, auth, string, history=True, level=logging.INFO):
     """We log to a file and the in memory queue."""
-    log.info('[%s] %s', auth, string)
+    log.log(level, '[%s] %s', auth, string)
     if history:
       self.log_entries.append((time.time(), auth, string))
       while len(self.log_entries) > LOG_HISTORY_SIZE:
@@ -146,7 +146,7 @@ class Arcom(object):
 
     sleep(0.1)
     indata = self.serialport.readline()
-    print 'Received: ' + indata
+    log.debug('received from arcom: ' + indata)
     if indata.startswith("+" + command[0:5]):
       msg = 'succeeded'
       status = True
@@ -239,11 +239,11 @@ class Arcom(object):
     return self.weblog.log(call, location, minutes)
 
   def status(self, auth):
-    """Non-Standard: returns status and dict"""
-    self.authlog(auth, "Status Request", history=False)
-    status = {
-        'Port 1 enabled': self.port1Enabled,
-        'Port 3 bridged': self.port3Bridged,
+    """Non-Standard: returns dict"""
+    self.authlog(auth, "Status Request", history=False, level=logging.DEBUG)
+    statu = {
+        'port1Enabled': self.port1Enabled,
+        'port3Bridged': self.port3Bridged,
         'testing': testing
         }
     if self.autoEnableTime:
@@ -251,74 +251,65 @@ class Arcom(object):
     return status
 
   def getLog(self, auth, num_entries):
-    """Non-Standard: returns status and array"""
+    """Non-Standard: returns an array of strings, possibly empty"""
     self.authlog(auth, "Log Request - %d entries" % num_entries)
     return self.log_entries[-num_entries:]
 
   def getIdentity(self, auth):
-    self.authlog(auth, 'Identity', history=False)
+    """We always log this to record invocations of the client."""
+    self.authlog(auth, 'Identity')
     return self.identity
 
-
-Valid_Options = ['device=', 'logtostderr', 'pidfile=',
-                 'port=', 'testing=', 'verbose=']
-
-def usage(error_msg=None):
-  """Print the error and a usage message, then exit."""
-  if error_msg:
-    print '%s' % error_msg
-  print 'Usage: %s [options]' % sys.argv[0]
-  for option in Valid_Options:
-    print '  --%s' % option
-  sys.exit(1)
 
 def main():
   """Main module - parse args and start server"""
   global testing, verbose
-  pidfile = ''
-  port = 45000
 
   cfg.read('arcom-server.conf')
-  serialDevice = cfg.get('arcom server', 'serialDevice')
 
-  try:
-    opts, args = getopt.getopt(sys.argv[1:], 'v', Valid_Options)
-    log.debug('opts = %s, args = %s', opts, args)
-  except getopt.GetoptError, error:
-    usage(error)
-  for flag, value in opts:
-    if flag == '--device':
-      serialDevice = value
-    if flag == '--logtostderr':
-      ch = logging.StreamHandler(sys.stderr)
-      ch.setLevel(logging.DEBUG)
-      formatter = logging.Formatter('%(levelname)-1s %(asctime)s %(message)s')
-      ch.setFormatter(formatter)
-      log.addHandler(ch)
-    if flag == '--pidfile':
-      pidfile = value
-    if flag == '--port':
-      port = int(value)
-    if flag == '--testing':
-      testing = value in ('True', '1', 'y')
-    if flag == '--verbose':
-      verbose = int(value)
-    if flag == '-v':
-      verbose += 1
+  p = optparse.OptionParser()
 
-  if pidfile:
-    log.debug('pid %d, pidfile %s', os.getpid(), pidfile)
-    f = open(pidfile, 'w')
+  p.add_option('--device', action='store', type='string', dest='device')
+  p.add_option('--logtostderr', action='store_true', dest='logtostderr')
+  p.add_option('--pidfile', action='store', type='string', dest='pidfile')
+  p.add_option('--port', action='store', type='int', dest='port')
+  p.add_option('--testing', action='store_true', dest='testing')
+  p.add_option('--verbose', action='store', type='int', dest='verbose')
+  p.add_option('-v', action='count', dest='verbose') 
+
+  p.set_defaults(device=cfg.get('arcom server', 'serialDevice'),
+                 logtostderr=False,
+                 pidfile='',
+                 port=45000,
+                 testing=False)
+
+  opt, _ = p.parse_args()
+
+  if opt.logtostderr:
+    ch = logging.StreamHandler(sys.stderr)
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(levelname)-1s %(asctime)s %(message)s')
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
+  if opt.pidfile:
+    log.debug('pid %d, pidfile %s', os.getpid(), opt.pidfile)
+    f = open(opt.pidfile, 'w')
     try:
       fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError, e:
-      log.fatal('Unable to acquire lock on %s: %s', pidfile, e)
+      log.fatal('Unable to acquire lock on %s: %s', opt.pidfile, e)
       sys.exit(99)
     f.write("%d\n" % os.getpid())
     f.flush()
 
-  arcom = Arcom(serialDevice)
-  server = ArcomXMLRPCServer(('', port))
+  testing = opt.testing
+  verbose = opt.verbose
+  if verbose > 1:
+    log.setLevel(logging.DEBUG)
+
+  arcom = Arcom(opt.device)
+  server = ArcomXMLRPCServer(('', opt.port))
   arcom.register_methods(server)
   server.serve_forever()
 
