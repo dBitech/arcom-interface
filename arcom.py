@@ -221,16 +221,14 @@ def interact(port, cfg):
       signal.alarm(15)      ## Refresh menu (status) every 15 seconds
       choice = ask_confirm("Enter your choice [0-10]: ", None)
       signal.alarm(0)
-      if dispatch(choice):
-        # This is just to keep the screen from repainting the menu.
-        ask_confirm("Continue?", None)
+      dispatch(choice)
     except TimeoutError:
       continue
     except SyntaxError:
       continue
     except socket.error, e:
       print "Server error: %s" % e
-      ask_confirm("Continue?", None)
+    ask_confirm("Continue?", None)
 
 
 def main():

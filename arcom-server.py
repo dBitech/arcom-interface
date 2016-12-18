@@ -147,13 +147,13 @@ class Arcom(object):
     sleep(0.1)
     indata = self.serialport.readline()
     log.debug('received from arcom: ' + indata)
-    if indata.startswith("+" + command[0:5]):
+    if indata.startswith("+"):
       msg = 'succeeded'
       status = True
-    elif indata.startswith("-" + command[0:5]):
+    elif indata.startswith("-"):
       msg = 'failed: %s' % command
     else:
-      msg = "unexpected response: %s" % command
+      msg = "unexpected response: %s" % indata
     log.debug(msg)
     clrBuff()
     self.arcomLock.release()
