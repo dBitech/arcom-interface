@@ -78,6 +78,7 @@ class Arcom(object):
     self.enableTimer = None
     self.port3Bridged = True
     self.identity = cfg.get('arcom server', 'identity')
+    self.autoEnableTime = None
     if not testing:
       self.serialport = serial.Serial(
           port=device,
@@ -146,13 +147,13 @@ class Arcom(object):
     sleep(0.1)
     indata = self.serialport.readline()
     log.debug('received from arcom: ' + indata)
-    if indata.startswith("+" + command[0:5]):
+    if indata.startswith("+"):
       msg = 'succeeded'
       status = True
-    elif indata.startswith("-" + command[0:5]):
+    elif indata.startswith("-"):
       msg = 'failed: %s' % command
     else:
-      msg = "unexpected response: %s" % command
+      msg = "unexpected response: %s" % indata
     log.debug(msg)
     clrBuff()
     self.arcomLock.release()
@@ -178,6 +179,7 @@ class Arcom(object):
         log.info('[%s] Setting enable timer for %d seconds', auth, interval)
         self.enableTimer = threading.Timer(interval, self.port1Enable, [auth, True])
         self.enableTimer.start()
+        self.autoEnableTime = time.time() + float(interval)
     self.port1Lock.release()
     return status, msg
 
@@ -194,6 +196,7 @@ class Arcom(object):
       log.info('[%s] Timer cancelled', auth)
       self.enableTimer.cancel()
       self.enableTimer = None
+      self.autoEnableTime = None
     self.port1Lock.release()
     return status, msg
 
@@ -238,11 +241,14 @@ class Arcom(object):
   def status(self, auth):
     """Non-Standard: returns dict"""
     self.authlog(auth, "Status Request", history=False, level=logging.DEBUG)
-    return {
+    status = {
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
         'testing': testing
         }
+    if self.autoEnableTime:
+      status['auto-enable'] = self.autoEnableTime
+    return status
 
   def getLog(self, auth, num_entries):
     """Non-Standard: returns an array of strings, possibly empty"""

@@ -13,6 +13,7 @@
 import optparse
 import os
 import re
+import signal
 import socket
 import sys
 import time
@@ -22,6 +23,9 @@ from configparser import ConfigParser
 
 config_file = '.arcom.conf'
 opt = None
+
+
+class TimeoutError(IOError): pass
 
 
 def countdown(t):
@@ -113,6 +117,9 @@ def interact(port, cfg):
       if key == 'testing':
         if value:
           print " |             TESTING MODE!                    |"
+      elif key == 'auto-enable':
+        print " | auto-enable at %-29.29s |" % time.strftime('%H:%M:%S',
+                                                             time.localtime(value))
       else:
         print " | %-16.16s %-27.27s |" % (key, value)
 
@@ -203,19 +210,25 @@ def interact(port, cfg):
     print "Command %s: %s" % (successString(status), msg)
     return status
 
+  def timeout(signum, frame):
+    raise TimeoutError('Timeout')
+
+  signal.signal(signal.SIGALRM, timeout)
   while True:
     try:
       status = arcom.status(call)
       print_menu(status)    ## Displays menu
+      signal.alarm(15)      ## Refresh menu (status) every 15 seconds
       choice = ask_confirm("Enter your choice [0-10]: ", None)
-      if dispatch(choice):
-        # This is just to keep the screen from repainting the menu.
-        ask_confirm("Continue?", None)
+      signal.alarm(0)
+      dispatch(choice)
+    except TimeoutError:
+      continue
     except SyntaxError:
       continue
     except socket.error, e:
       print "Server error: %s" % e
-      ask_confirm("Continue?", None)
+    ask_confirm("Continue?", None)
 
 
 def main():
