@@ -111,8 +111,9 @@ def interact(port, cfg):
 
   def printStatus(status):
     for key, value in sorted(status.items()):
-      if key == 'testing' and value:
-        print " |             TESTING MODE!                    |"
+      if key == 'testing':
+        if value:
+          print " |             TESTING MODE!                    |"
       else:
         print " | %-16.16s %-27.27s |" % (key, value)
 
@@ -236,7 +237,7 @@ def main():
 
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'v', Valid_Options)
-    print 'opts = %s, args = %s' % (opts, args)
+    # print 'opts = %s, args = %s' % (opts, args)
   except getopt.GetoptError, error:
     usage(error)
   for flag, value in opts:
@@ -258,4 +259,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-# THIS IS A COMMENT
