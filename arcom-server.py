@@ -241,7 +241,7 @@ class Arcom(object):
   def status(self, auth):
     """Non-Standard: returns dict"""
     self.authlog(auth, "Status Request", history=False, level=logging.DEBUG)
-    statu = {
+    status = {
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
         'testing': testing
