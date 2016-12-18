@@ -10,7 +10,7 @@
    Reference: RCP Protocol and Serial Port Operations
    (available from the Arcom website)
 """
-import getopt
+import optparse
 import os
 import re
 import socket
@@ -21,8 +21,7 @@ from time import sleep
 from configparser import ConfigParser
 
 config_file = '.arcom.conf'
-testing = True
-verbose = 1
+opt = None
 
 
 def countdown(t):
@@ -100,7 +99,7 @@ def interact(port, cfg):
     """Disable for specified number of seconds.
        If the users interrupts the countdown, re-enable immediately.
     """
-    if ask_confirm('Are you SURE? [Action will be logged.]\n', 'no'):
+    if ask_confirm('Are you SURE? (Action will be logged.) ', 'no'):
       print "DISABLING Port 1 XMIT - %02d:00 Minutes" % minutes
       print_failure('port1Disable', arcom.port1Disable(call, minutes*60))
       print_failure('logInterference', arcom.logInterference(call, location, minutes))
@@ -172,20 +171,20 @@ def interact(port, cfg):
       return disable_for_minutes(15)
     elif choice is 4:
       print "DISABLING Port 1 XMIT"
-      if ask_confirm("Are you SURE?\n", "no"):
+      if ask_confirm("Are you SURE? ", "no"):
         status, msg = arcom.port1Disable(call)
     elif choice is 5:
       print "ENABLING Port 1 XMIT"
       status, msg = arcom.port1Enable(call)
     elif choice is 6:
       print "UN-BRIDGING IRLP NODE Port 3</>1"
-      if ask_confirm("Are you SURE?\n", "no"):
+      if ask_confirm("Are you SURE? ", "no"):
         status, msg = arcom.port3Unbridge(call)
     elif choice is 7:
       print "BRIDGING IRLP NODE Port 3<->1"
       status, msg = arcom.port3Bridge(call)
     elif choice is 8:
-      if ask_confirm("Are you SURE?\n", "no"):
+      if ask_confirm("Are you SURE? ", "no"):
         print "RESTARTING CONTROLLER"
         status, msg = arcom.restart(call)
     elif choice is 9:
@@ -205,10 +204,10 @@ def interact(port, cfg):
     return status
 
   while True:
-    status = arcom.status(call)
-    print_menu(status)    ## Displays menu
-    choice = ask_confirm("Enter your choice [0-10]: ", None)
     try:
+      status = arcom.status(call)
+      print_menu(status)    ## Displays menu
+      choice = ask_confirm("Enter your choice [0-10]: ", None)
       if dispatch(choice):
         # This is just to keep the screen from repainting the menu.
         ask_confirm("Continue?", None)
@@ -219,42 +218,20 @@ def interact(port, cfg):
       ask_confirm("Continue?", None)
 
 
-Valid_Options = ['port=', 'testing=', 'verbose=']
-
-def usage(error_msg=None):
-  """Print the error and a usage message, then exit."""
-  if error_msg:
-    print '%s' % error_msg
-  print 'Usage: %s [options]' % sys.argv[0]
-  for option in Valid_Options:
-    print '  --%s' % option
-  sys.exit(1)
-
 def main():
   """Main module - parse args and start server"""
-  global testing, verbose
-  port = 45000
+  global opt
 
-  try:
-    opts, args = getopt.getopt(sys.argv[1:], 'v', Valid_Options)
-    # print 'opts = %s, args = %s' % (opts, args)
-  except getopt.GetoptError, error:
-    usage(error)
-  for flag, value in opts:
-    if flag == '--port':
-      port = int(value)
-    if flag == '--testing':
-      testing = value in ('True', '1', 'y')
-    if flag == '--verbose':
-      verbose = int(value)
-    if flag == '-v':
-      verbose += 1
+  p = optparse.OptionParser()
+  p.add_option('--port', action='store', type='int', dest='port')
+  p.set_defaults(port=45000)
+  opt, _ = p.parse_args()
 
   home_config_file = os.path.expandvars('$HOME/'+config_file)
   cfg = ConfigParser()
   cfg.read((config_file, home_config_file))
 
-  interact(port, cfg)
+  interact(opt.port, cfg)
 
 
 if __name__ == '__main__':
