@@ -141,7 +141,6 @@ def interact(port, cfg):
     print " | 8.  RESTART CONTROLLER                       |"
     print " | 9.  SET DATE/TIME                            |"
     print " | 10. GET LAST 10 LOG ENTRIES                  |"
-    print " | 11. TEST WEB LOGGING                         |"
     print " |", 44 * " ", "|"
     print " ", 30 * "-", "KG7AUL/KD7DK", "--"
 
@@ -201,8 +200,6 @@ def interact(port, cfg):
       entries = arcom.getLog(call, 10)
       listLog(entries)
       return True
-    elif choice is 11:
-      status, msg = arcom.logInterference(call, location, 5)
     elif choice is 0:
       print "Quitting"
       sys.exit(0)
