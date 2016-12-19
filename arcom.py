@@ -164,7 +164,7 @@ def interact(port, cfg):
     msg = ''
 
     if line == "":
-      return False
+      return
     try:
       choice = int(line)
     except ValueError:
@@ -199,16 +199,16 @@ def interact(port, cfg):
     elif choice is 10:
       entries = arcom.getLog(call, 10)
       listLog(entries)
-      return True
+      return
     elif choice is 0:
       print "Quitting"
       sys.exit(0)
     else:
       # Any other integer inputs print an error message
-      ask_confirm("Invalid option selected. Choose a valid number option.\nContinue? ", None)
-      return False
+      print 'Invalid option selected. Choose a valid number option.'
+      return
     print "Command %s: %s" % (successString(status), msg)
-    return status
+    return
 
   def timeout(signum, frame):
     raise TimeoutError('Timeout')
