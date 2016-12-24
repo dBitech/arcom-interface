@@ -2,6 +2,7 @@
 Web server function of arcom-server
 """
 import logging
+import ssl
 
 try:                 # Python 3
   from http.server import (SimpleHTTPRequestHandler)
@@ -36,6 +37,13 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
     SimpleXMLRPCRequestHandler.__init__(self, *args, **kwargs)
     self.HTTPRequestHandler = SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
 
+  def do_AUTHHEAD(self):
+    print "do AUTHHEAD"
+    self.send_response(401)
+    self.send_header('WWW-Authenticate', 'Basic realm=\"Arcom\"')
+    self.send_header('Content-type', 'text/html')
+    self.end_headers()
+
   def do_GET(self):
     """Add authentication to the XMLRPC handlers."""
     #TODO(dpk): Need to implement proper AUTH here
@@ -59,6 +67,9 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
 def run_server(arcom):
   """Creat and run the core XMLRPC webserver."""
   server = ArcomWebServer(('', 8080), ArcomAuthorizingRequestHandler)
+  server.socket = ssl.wrap_socket (server.socket,
+        keyfile="key.pem",
+        certfile='cert.pem', server_side=True)
   server.register_introspection_functions()
   arcom.register_functions(server)
   server.serve_forever()
