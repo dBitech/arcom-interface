@@ -29,16 +29,20 @@ class LogGoogle(object):
 
   def log(self, call, location, minutes):
     """Post an interference report to Google form."""
-    if not self.testing:
-      self.form_data['entry.1984381604'] = call
-      self.form_data['entry.773252163'] = location
-      self.form_data['entry.530211156'] = 'Yes - ' + str(minutes) + ' min'
-      resp = requests.post(self.url_base+'/formResponse',
-                           data=self.form_data,
-                           headers=self.user_agent)
-      if resp.status_code == 200:
-        return True, "Action logged to Google."
-      else:
-        return False, "Logging to Google failed: %s" % resp.status_code
-    else:
+    self.form_data['entry.1984381604'] = '__other_option__'
+    self.form_data['entry.1984381604.other_option_response'] = call
+    self.form_data['entry.773252163'] = location
+    self.form_data['entry.530211156'] = 'Yes - ' + str(minutes) + ' min'
+    if self.testing:
+      print 'URL: %s' % self.url_base+'/formResponse'
+      print self.form_data
+      print 'User agent: %s' % self.user_agent
       return True, "Action NOT logged.  (Testing mode)"
+
+    resp = requests.post(self.url_base+'/formResponse',
+                         data=self.form_data,
+                         headers=self.user_agent)
+    if resp.status_code == 200:
+      return True, "Action logged to Google."
+    else:
+      return False, "Logging to Google failed: %s" % resp.status_code
