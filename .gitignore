@@ -3,6 +3,7 @@
 arcom-server.conf
 .arcom.conf
 arcom.log
+arcom.commands
 *.js
 
 # Byte-compiled / optimized / DLL files
