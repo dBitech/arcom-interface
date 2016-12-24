@@ -23,11 +23,7 @@ from time import sleep
 from configparser import ConfigParser
 import serial
 import weblog_Google as weblog
-
-try:
-  from xmlrpc.server import SimpleXMLRPCServer       # Python 3
-except ImportError:
-  from SimpleXMLRPCServer import SimpleXMLRPCServer  # Python 2
+import web_server
 
 defaults = {
     'serialDevice': '/dev/ttyUSB0'
@@ -45,14 +41,6 @@ logging.basicConfig(
 log = logging.getLogger('arcom')
 cfg = ConfigParser(defaults)
 
-class ArcomXMLRPCServer(SimpleXMLRPCServer):
-  """Basic XMLRPC server class with localhost only access."""
-  def verify_request(self, request, client_address):
-    host, _ = client_address
-    if host != '127.0.0.1':
-      return False
-    return SimpleXMLRPCServer.verify_request(self, request, client_address)
-
 
 def load_log_entries(num_entries):
   """Read the last LOG_HISTORY_SIZE entries from log file
@@ -61,6 +49,7 @@ def load_log_entries(num_entries):
      """
   #TODO(dpk): return log entries from log file
   return []
+
 
 class Arcom(object):
   """Arcom 210 controller with serial access
@@ -91,7 +80,7 @@ class Arcom(object):
     else:
       self.serialport = open(arcomDebugFile, 'w')
 
-  def register_methods(self, server):
+  def register_functions(self, server):
     """Register externally callable methods with XMLRPC server."""
     server.register_function(self.port1Disable)
     server.register_function(self.port1Enable)
@@ -235,8 +224,8 @@ class Arcom(object):
     else:
       return status, msg
 
-  def logInterference(self, call, location, minutes):
-    return self.weblog.log(call, location, minutes)
+  def logInterference(self, auth, location, minutes):
+    return self.weblog.log(auth, location, minutes)
 
   def status(self, auth):
     """Non-Standard: returns dict"""
@@ -259,6 +248,11 @@ class Arcom(object):
     """We always log this to record invocations of the client."""
     self.authlog(auth, 'Identity')
     return self.identity
+
+  def setViolator(self, auth, violator):
+    self.authlog(auth, 'setViolator')
+    #TODO(dpk): implement violator setting
+    return False, 'Not implemented yet.'
 
 
 def main():
@@ -309,9 +303,7 @@ def main():
     log.setLevel(logging.DEBUG)
 
   arcom = Arcom(opt.device)
-  server = ArcomXMLRPCServer(('', opt.port))
-  arcom.register_methods(server)
-  server.serve_forever()
+  web_server.run_server(arcom)
 
 
 if __name__ == '__main__':

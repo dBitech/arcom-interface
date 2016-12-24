@@ -1,5 +1,9 @@
-# Editor save files
+# Local filters
 *~
+arcom-server.conf
+.arcom.conf
+arcom.log
+*.js
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
