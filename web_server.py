@@ -19,7 +19,7 @@ except ImportError:  # Python 2
   from SimpleXMLRPCServer import (SimpleXMLRPCServer,
                                   SimpleXMLRPCRequestHandler)
 
-log = logging.getLogger()
+log = logging.getLogger('arcom')
 
 def valid_auth(string):
   """Validate that user:hash is a valid credential."""
@@ -103,9 +103,9 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
       self.wfile.write(self.headers.getheader('Authorization'))
 
 
-def run_server(arcom):
+def run_server(arcom, opt):
   """Creat and run the core XMLRPC webserver."""
-  server = ArcomWebServer(('', 8080), ArcomAuthorizingRequestHandler)
+  server = ArcomWebServer(('', opt.port), ArcomAuthorizingRequestHandler)
   server.socket = ssl.wrap_socket(
       server.socket,
       keyfile="key.pem",

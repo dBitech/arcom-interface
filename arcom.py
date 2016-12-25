@@ -15,6 +15,7 @@ import os
 import re
 import signal
 import socket
+import ssl
 import sys
 import time
 import xmlrpclib
@@ -46,11 +47,17 @@ def countdown(t):
       break
   return t
 
-def interact(port, cfg):
+def interact(opt, cfg):
   """Main user interaction loop.
      We pass in a configuration object which must at a minimum have callsign (call).
   """
-  arcom = xmlrpclib.ServerProxy("http://localhost:%s" % port)
+  #print 'opening https://%s:%s@%s:%s' % (
+  #    opt.user, opt.password, opt.host, opt.port)
+  arcom = xmlrpclib.ServerProxy(
+      "https://%s:%s@localhost:%s" % (opt.user, opt.password, opt.port),
+      verbose=False, use_datetime=True, 
+      context=ssl._create_unverified_context())
+
   call = cfg.get('arcom', 'call')
   if not re.match(r'[A-Za-z]+\d[A-Za-z]+', call):
     raise RuntimeError('Format error for call in .arcom.conf.')
@@ -165,7 +172,7 @@ def interact(port, cfg):
     msg = ''
 
     if line == "":
-      return False
+      return
     try:
       choice = int(line)
     except ValueError:
@@ -200,16 +207,16 @@ def interact(port, cfg):
     elif choice is 10:
       entries = arcom.getLog(call, 10)
       listLog(entries)
-      return True
+      return
     elif choice is 0:
       print "Quitting"
       sys.exit(0)
     else:
       # Any other integer inputs print an error message
-      ask_confirm("Invalid option selected. Choose a valid number option.\nContinue? ", None)
-      return False
+      print "Invalid option selected. Choose a valid number option."
+      return
     print "Command %s: %s" % (successString(status), msg)
-    return status
+    return
 
   def timeout(signum, frame):
     raise TimeoutError('Timeout')
@@ -237,15 +244,22 @@ def main():
   global opt
 
   p = optparse.OptionParser()
+  p.add_option('--host', action='store', type='string', dest='host')
   p.add_option('--port', action='store', type='int', dest='port')
-  p.set_defaults(port=45000)
+  p.add_option('--user', action='store', type='string', dest='user')
+  p.add_option('--password', action='store', type='string', dest='password')
+  p.set_defaults(
+      host='localhost',
+      port=45000,
+      user=os.environ["ARCOM_USER"],
+      password=os.environ["ARCOM_PASSWORD"])
   opt, _ = p.parse_args()
 
   home_config_file = os.path.expandvars('$HOME/'+config_file)
   cfg = ConfigParser()
   cfg.read((config_file, home_config_file))
 
-  interact(opt.port, cfg)
+  interact(opt, cfg)
 
 
 if __name__ == '__main__':

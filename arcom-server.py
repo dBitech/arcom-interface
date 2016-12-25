@@ -61,11 +61,11 @@ class Arcom(object):
      It's OK to hard code the serial setup as the Arcom serial
      settings are fixed.
      """
-  def __init__(self, device, cfg, testing):
+  def __init__(self, opt, cfg):
     """open and configure serial port"""
     self.cfg = cfg
-    self.testing = testing
-    self.weblog = weblog.LogGoogle(cfg, testing)
+    self.testing = opt.testing
+    self.weblog = weblog.LogGoogle(cfg, opt.testing)
     self.log_entries = load_log_entries(LOG_HISTORY_SIZE)
     self.arcomLock = threading.Lock()
     self.port1Lock = threading.Lock()
@@ -74,9 +74,9 @@ class Arcom(object):
     self.port3Bridged = True
     self.identity = cfg.get('arcom server', 'identity')
     self.autoEnableTime = None
-    if not testing:
+    if not opt.testing:
       self.serialport = serial.Serial(
-          port=device,
+          port=opt.device,
           baudrate=9600,
           parity=serial.PARITY_NONE,
           stopbits=serial.STOPBITS_ONE,
@@ -317,8 +317,8 @@ def main():
     f.flush()
 
   signal.signal(signal.SIGINT, die)
-  arcom = Arcom(opt.device, cfg, opt.testing)
-  web_server.run_server(arcom)
+  arcom = Arcom(opt, cfg)
+  web_server.run_server(arcom, opt)
 
 
 if __name__ == '__main__':
