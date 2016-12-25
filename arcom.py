@@ -144,6 +144,7 @@ def interact(port, cfg):
     print " |", 44 * " ", "|"
     print " ", 30 * "-", "KG7AUL/KD7DK", "--"
 
+
   def listLog(entries):
     """Display the log entry tuples (time, call, string)."""
     for entry in entries:
