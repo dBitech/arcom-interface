@@ -1,4 +1,4 @@
-; Config file for arcom.py
+; Config file for arcom.py (typically in $HOME/.arcom.conf or $PWD/.arcom.conf)
 ; call should be your FCC call sign
 ; location can be any short descriptive string to be included in the weblog entry.
 ; Grid location is a good choice.  Or it could be descriptive like 'Home' depending
