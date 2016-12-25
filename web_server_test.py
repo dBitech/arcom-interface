@@ -8,10 +8,10 @@ import web_server
 
 logging.basicConfig(
     filename='arcom.log',
-    format='%(levelname)-1s %(asctime)s %(message)s',
+    format='%(levelname)-7s %(asctime)s %(threadName)s %(message)s',
     level=logging.DEBUG
 )
-log = logging.getLogger('arcom')
+log = logging.getLogger('')
 logtostderr = True
 
 

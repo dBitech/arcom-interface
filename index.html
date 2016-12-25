@@ -5,22 +5,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <link rel="stylesheet" type="text/css" href="http:/arcom.css">
+  <link rel="stylesheet" type="text/css" href="https:/arcom.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.4.0/bootbox.min.js"></script>
-  <script src="http:/jquery.xmlrpc.js"></script>
+  <script src="https:/jquery.xmlrpc.js"></script>
   <script>
     //TODO(dpk): this needs to be initialized at login time or via dialog.
     var call = "KD7DK";
     var place = "CN87tq";
 
     function updateResponse(response, status, jqXHR) {
-      $("#response").html('<div class="well well-sm"> '+response[0]+'</div>')
+      var tuple = response[0];
+      $("#response").html('<div class="well well-sm"> RPC ' + status +
+                          ': Command ' + tuple[0] + ': ' + tuple[1] + '</div>');
     }
 
     function callRPC(func, params, callback){
-      var rpcURL = "http:/RPC2";
+      var rpcURL = "https:/RPC2";
 
       if (!callback) callback = updateResponse;
 
@@ -39,6 +41,7 @@
     }
 
     function updateStatus(response, status, jqXHR){
+      updateResponse(response, status, jqXHR);
       callRPC("status", [call], setStatus);
     }
 
@@ -48,10 +51,28 @@
 
       html = '<table class=\"table table-condensed\"><tbody>'
       for (var item in obj) {
-        html += "<tr><td>" + item + "</td><td>" + obj[item] + "</td></tr>"
+	if (item == "auto-enable") {
+	  html += "<tr><td>" + item + "</td><td>" +
+	          Date(obj[item].toFixed(0)*1000) + "</td></tr>";
+	} else
+          html += "<tr><td>" + item + "</td><td>" + obj[item] + "</td></tr>";
       }
-      html += "</tbody></table>"
+      html += "</tbody></table>";
       $("#status-content").html(html);
+    }
+
+    function listLog(response, status, jqXHR){
+      var html = '';
+      var obj = response[0]
+
+      html = '<table class=\"table table-condensed\"><tbody>'
+      for (var item in obj) {
+	var entry = obj[item];
+        html += "<tr><td>" + Date(entry[0].toFixed(0)*1000) + "</td><td>" +
+                entry[1] + "</td><td>" + entry[2] + "</td></tr>";
+      }
+      html += "</tbody></table>";
+      $("#response").html(html);
     }
 
     function disableAndLog(call, mins){
@@ -96,7 +117,7 @@
       });
       $("#getIdentity").bind('click', function (){callRPC("getIdentity", [call], setTitle)});
       $("#getStatus").bind('click', function (){callRPC("status", [call], setStatus)});
-      $("#getLog").bind('click', function (){callRPC("getLog", [call, 10])});
+      $("#getLog").bind('click', function (){callRPC("getLog", [call, 10], listLog)});
       $("#logInterference").bind('click', function (){
           bootbox.confirm("Confirm logging?", function(result){
               if (result) callRPC("logInterference", [call, place, 300]);

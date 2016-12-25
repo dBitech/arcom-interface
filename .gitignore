@@ -2,7 +2,7 @@
 *~
 arcom-server.conf
 .arcom.conf
-arcom.log
+arcom.log*
 arcom.commands
 *.js
 

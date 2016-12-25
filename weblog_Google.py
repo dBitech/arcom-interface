@@ -12,10 +12,7 @@ class LogGoogle(object):
   testing = False
   url_base = ''
   form_data = {}
-  user_agent = {
-      'User-Agent':'Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 '
-                   '(KHTML, like Gecko) Chrome/28.0.1500.52 Safari/537.36'
-      }
+  user_agent = {'User-Agent':'arcom-server.py v1.0'}
 
   def __init__(self, cfg, testing):
     self.testing = testing

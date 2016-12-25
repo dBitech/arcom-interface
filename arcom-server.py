@@ -9,13 +9,15 @@
 
    Reference: RCP Protocol and Serial Port Operations
    http://www.arcomcontrollers.com/images/documents/rc210/rcpprotocol.pdf
-  
+
 """
 import datetime
 import fcntl
 import optparse
 import logging
+import logging.handlers
 import os
+import signal
 import sys
 import threading
 import time
@@ -25,22 +27,23 @@ import serial
 import weblog_Google as weblog
 import web_server
 
-defaults = {
+configDefaults = {
     'serialDevice': '/dev/ttyUSB0'
 }
 
 LOG_HISTORY_SIZE = 100
-testing = False
-verbose = 0
 arcomDebugFile = 'arcom.commands'
+logFile = 'arcom.log'
+logFormat = '%(levelname)-7s %(asctime)s %(threadName)s %(message)s'
+"""
 logging.basicConfig(
-    filename='arcom.log',
-    format='%(levelname)-1s %(asctime)s %(message)s',
-    level=logging.INFO
+    format=logFormat,
+    level=logging.ERROR,
 )
+"""
 log = logging.getLogger('arcom')
-cfg = ConfigParser(defaults)
-
+log.addHandler(logging.handlers.RotatingFileHandler(
+    logFile, maxBytes=512*1024, backupCount=5))
 
 def load_log_entries(num_entries):
   """Read the last LOG_HISTORY_SIZE entries from log file
@@ -48,6 +51,7 @@ def load_log_entries(num_entries):
      the in memory log history.
      """
   #TODO(dpk): return log entries from log file
+  log.debug('Loading max of %d log entries.', num_entries)
   return []
 
 
@@ -57,9 +61,11 @@ class Arcom(object):
      It's OK to hard code the serial setup as the Arcom serial
      settings are fixed.
      """
-  def __init__(self, device):
+  def __init__(self, opt, cfg):
     """open and configure serial port"""
-    self.weblog = weblog.LogGoogle(cfg, testing)
+    self.cfg = cfg
+    self.testing = opt.testing
+    self.weblog = weblog.LogGoogle(cfg, opt.testing)
     self.log_entries = load_log_entries(LOG_HISTORY_SIZE)
     self.arcomLock = threading.Lock()
     self.port1Lock = threading.Lock()
@@ -68,9 +74,9 @@ class Arcom(object):
     self.port3Bridged = True
     self.identity = cfg.get('arcom server', 'identity')
     self.autoEnableTime = None
-    if not testing:
+    if not opt.testing:
       self.serialport = serial.Serial(
-          port=device,
+          port=opt.device,
           baudrate=9600,
           parity=serial.PARITY_NONE,
           stopbits=serial.STOPBITS_ONE,
@@ -111,14 +117,13 @@ class Arcom(object):
 
     def clrBuff():
       """Swallow any pending output from the controller."""
-      if testing:
+      if self.testing:
         return
       indata = ''
       count = 0
       while count < 5:
         indata = self.serialport.readline()
-        if verbose:
-          log.debug('clrBuff received: %s', indata)
+        log.debug('clrBuff received: %s', indata)
         count += 1
       self.serialport.write('\r')
 
@@ -128,7 +133,7 @@ class Arcom(object):
     command = '1*' + command + '\r\n'
     log.debug(' Sending: %s', command)
     self.serialport.write(command)
-    if testing:
+    if self.testing:
       self.serialport.flush()
       self.arcomLock.release()
       return True, 'TESTING MODE'
@@ -160,7 +165,7 @@ class Arcom(object):
     if interval:
       msg += ' (with %d second timer)' % interval
     self.authlog(auth, msg)
-    status, msg = self.cmdSend(cfg.get('arcom commands', 'port1Disable'))
+    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port1Disable'))
     if status:
       self.port1Enabled = False
     if interval > 0:
@@ -178,7 +183,7 @@ class Arcom(object):
     if fromTimer:
       log.info('[%s] Timer expired, re-enabling repeater', auth)
     self.authlog(auth, 'Port 1 ON')
-    status, msg = self.cmdSend(cfg.get('arcom commands', 'port1Enable'))
+    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port1Enable'))
     if status:
       self.port1Enabled = True
     if self.enableTimer:
@@ -191,29 +196,29 @@ class Arcom(object):
 
   def port3Unbridge(self, auth):
     self.authlog(auth, 'Unbridge Port 1-3')
-    status, msg = self.cmdSend(cfg.get('arcom commands', 'port3Unbridge'))
+    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port3Unbridge'))
     if status:
       self.port3Bridged = False
     return status, msg
 
   def port3Bridge(self, auth):
     self.authlog(auth, 'Bridge Port 1-3')
-    status, msg = self.cmdSend(cfg.get('arcom commands', 'port3Bridge'))
+    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port3Bridge'))
     if status:
       self.port3Bridged = True
     return status, msg
 
   def restart(self, auth):
     self.authlog(auth, 'Restart')
-    return self.cmdSend(cfg.get('arcom commands', 'restart'))
+    return self.cmdSend(self.cfg.get('arcom commands', 'restart'))
 
   def setDateTime(self, auth):
     self.authlog(auth, 'Set Date/Time')
     now = datetime.datetime.now()
     datestring = now.strftime('%m%d%y')
     timestring = now.strftime('%H%M%S')
-    datestring = cfg.get('arcom commands', 'setDate') + datestring
-    timestring = cfg.get('arcom commands', 'setTime') + timestring
+    datestring = self.cfg.get('arcom commands', 'setDate') + datestring
+    timestring = self.cfg.get('arcom commands', 'setTime') + timestring
     status, msg = self.cmdSend(datestring)
     if not status:
       return status, msg
@@ -233,7 +238,7 @@ class Arcom(object):
     status = {
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
-        'testing': testing
+        'testing': self.testing
         }
     if self.autoEnableTime:
       status['auto-enable'] = self.autoEnableTime
@@ -250,15 +255,18 @@ class Arcom(object):
     return self.identity
 
   def setViolator(self, auth, violator):
-    self.authlog(auth, 'setViolator')
     #TODO(dpk): implement violator setting
+    self.authlog(auth, 'setViolator to "%s"', violator)
     return False, 'Not implemented yet.'
 
 
+def die(_signum, _frame):
+  """Exit gracefully.  Generally from SIGINTR while testing."""
+  sys.exit(0)
+
 def main():
   """Main module - parse args and start server"""
-  global testing, verbose
-
+  cfg = ConfigParser(configDefaults)
   cfg.read('arcom-server.conf')
 
   p = optparse.OptionParser()
@@ -269,7 +277,7 @@ def main():
   p.add_option('--port', action='store', type='int', dest='port')
   p.add_option('--testing', action='store_true', dest='testing')
   p.add_option('--verbose', action='store', type='int', dest='verbose')
-  p.add_option('-v', action='count', dest='verbose') 
+  p.add_option('-v', action='count', dest='verbose')
 
   p.set_defaults(device=cfg.get('arcom server', 'serialDevice'),
                  logtostderr=False,
@@ -279,13 +287,24 @@ def main():
 
   opt, _ = p.parse_args()
 
-  if opt.logtostderr:
-    ch = logging.StreamHandler(sys.stderr)
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(levelname)-1s %(asctime)s %(message)s')
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
+  if opt.verbose > 1:
+    log.setLevel(logging.DEBUG)
 
+  # Create a second handler to log to the console.
+  formatter = logging.Formatter(logFormat)
+  if opt.logtostderr:
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+  """#TODO(dpk): reset maxBytes to 1M
+  handler = logging.handlers.RotatingFileHandler(
+      logFile, maxBytes=1*1024, backupCount=5)
+  log.addHandler(handler)
+  """
+
+  # More than a pidfile, we use locking to ensure exclusive access.
   if opt.pidfile:
     log.debug('pid %d, pidfile %s', os.getpid(), opt.pidfile)
     f = open(opt.pidfile, 'w')
@@ -297,13 +316,9 @@ def main():
     f.write("%d\n" % os.getpid())
     f.flush()
 
-  testing = opt.testing
-  verbose = opt.verbose
-  if verbose > 1:
-    log.setLevel(logging.DEBUG)
-
-  arcom = Arcom(opt.device)
-  web_server.run_server(arcom)
+  signal.signal(signal.SIGINT, die)
+  arcom = Arcom(opt, cfg)
+  web_server.run_server(arcom, opt)
 
 
 if __name__ == '__main__':
