@@ -299,7 +299,7 @@ def main():
   p.set_defaults(device=cfg.get('arcom server', 'serialDevice'),
                  logtostderr=False,
                  pidfile='',
-                 port=45000,
+                 port=3333,
                  testing=False)
 
   opt, _ = p.parse_args()
