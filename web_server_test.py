@@ -3,16 +3,17 @@
 Test framework for web server function of arcom-server
 """
 import logging
+import optparse
 import sys
 import web_server
 
+logFormat = '%(levelname)-7s %(asctime)s %(threadName)s %(message)s' 
 logging.basicConfig(
     filename='arcom.log',
-    format='%(levelname)-7s %(asctime)s %(threadName)s %(message)s',
+    format=logFormat,
     level=logging.DEBUG
 )
 log = logging.getLogger('')
-logtostderr = True
 
 
 class ArcomDummy(object):
@@ -95,8 +96,8 @@ class ArcomDummy(object):
     status = {
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
-        'testing': True
-        'violator': 'Violator Alfa (High pitched, falsetto, singing, swearing)'
+        'testing': True,
+        'violator': 'Violator Alfa (High pitched, falsetto, singing, swearing)',
         }
     return status
 
@@ -116,15 +117,27 @@ class ArcomDummy(object):
 
 
 def main():
-  if logtostderr:
+  p = optparse.OptionParser()
+
+  p.add_option('--logtostderr', action='store_true', dest='logtostderr')
+  p.add_option('--port', action='store', type='int', dest='port')
+  p.add_option('--testing', action='store_true', dest='testing')
+
+  p.set_defaults(logtostderr=True,
+                 port=4444,
+                 testing=True)
+
+  opt, _ = p.parse_args()
+
+  if opt.logtostderr:
     ch = logging.StreamHandler(sys.stderr)
     ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(levelname)-1s %(asctime)s %(message)s')
+    formatter = logging.Formatter(logFormat)
     ch.setFormatter(formatter)
     log.addHandler(ch)
 
   arcom = ArcomDummy()
-  web_server.run_server(arcom)
+  web_server.run_server(arcom, opt)
 
 
 if __name__ == '__main__':

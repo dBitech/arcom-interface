@@ -9,16 +9,19 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.4.0/bootbox.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
   <script src="https:/jquery.xmlrpc.js"></script>
   <script>
-    //TODO(dpk): this needs to be initialized at login time or via dialog.
-    var call = "KD7DK";
-    var place = "CN87tq";
+    var call = "Unknown";
+    var place = "Unknown";
 
     function updateResponse(response, status, jqXHR) {
       var tuple = response[0];
-      $("#response").html('<div class="well well-sm"> RPC ' + status +
-                          ': Command ' + tuple[0] + ': ' + tuple[1] + '</div>');
+      setResponse('RPC ' + status + ': Command ' + tuple[0] + ': ' + tuple[1]);
+    }
+
+    function setResponse(text) {
+      $("#response").html('<div class="well well-sm">' + text + '</div>');
     }
 
     function callRPC(func, params, callback){
@@ -37,7 +40,7 @@
 
     function setTitle(response, status, jqXHR){
       var identity = response;
-      $("#title").html('<h2>Repeater Control - '+identity+'</h2>');
+      $("#title").html('<h3>Repeater Control - '+identity+'</h3>');
     }
 
     function updateStatus(response, status, jqXHR){
@@ -49,6 +52,8 @@
       var html = '';
       var obj = response[0]
 
+      $("#statusTitle").html("<h4>Status (" +  $.cookie("arcom.call") +
+                             " @ " + $.cookie("arcom.location") + ")</h4>");
       html = '<table class=\"table table-condensed\"><tbody>'
       for (var item in obj) {
 	if (item == "auto-enable") {
@@ -78,6 +83,31 @@
     function disableAndLog(call, mins){
       callRPC("port1Disable", [call, mins], updateStatus);
       callRPC("logInterference", [call, place, mins]);
+    }
+
+    function checkCookies(){
+      if ($.cookie("arcom.call") == "" || $.cookie("arcom.location") == "")
+        setCookies();
+      call = $.cookie("arcom.call");
+      place = $.cookie("arcom.location");
+    }
+
+    function setCookies(){
+      bootbox.prompt({ 
+        size: "small",
+        title: "What is your call?",
+        callback: function(result){
+          if (result != null) $.cookie("arcom.call", result.toUpperCase(), { expires: 365 });
+          bootbox.prompt({
+            title: "What is your location? (e.g. grid square)",
+            callback: function(result){
+              if (result != null) $.cookie("arcom.location", result, { expires: 365 });
+              setResponse('Call=' + $.cookie("arcom.call") +
+                          '  Location=' + $.cookie("arcom.location"));
+            }
+          });
+        }
+      });
     }
 
     $(document).ready(function(){
@@ -125,7 +155,7 @@
       });
       $("#setViolator").bind('click', function (){
           bootbox.prompt({
-            title: "This is a prompt with select!",
+            title: "Select violator",
             inputType: 'select',
             inputOptions: [
               { text: 'Violator Alpha (falsetto)',
@@ -138,9 +168,12 @@
             ],
             callback: function (result) {
               if (result != null) callRPC("setViolator", [call, result]);
+              else setResponse("No change.");
             }
          });
       });
+      $("#setCookies").bind('click', function (){setCookies()});
+      checkCookies();
     })
   </script>
 </head>
@@ -148,14 +181,14 @@
 <body>
 <div class="container">
   <div id="header" class="row">
-    <div id="title"><h2>Repeater Control</h2></div>
-    <h3>Status</h3>
+    <div id="title"><h3>Repeater Control</h3></div>
+    <div id="statusTitle"<h4>Status</h4></div>
     <div class="col-sm-4">
       <div id="status-content"></div>
     </div>
   </div>
   <div class="row">
-    <h3>Commands</h3>
+    <h4>Commands</h4>
     <div id="menu1" class="btn-group-vertical" class="btn-group-xs" class="col-sm-4">
       <button type="button" class="btn btn-danger"
 	      id="port1Disable5">Port 1 Disable for 5 minutes</button><br>
@@ -184,13 +217,12 @@
       <button type="button" class="btn btn-success"
 	      id="port3Bridge">Bridge Port 1-to-3</button><br>
       <button type="button" class="btn btn-warning"
-	      id="logInterference">logInterference</button><br>
-      <button type="button" class="btn btn-default"
-	      id="bar">(unused) </button><br>
+	      id="setViolator">Set Violator</button><br>
+      <button type="button" class="btn btn-info"
+	      id="setCookies">Set Cookies</button><br>
     </div>
   </div>
-  <div id="response" class="row">
-  </div>
+  <div id="response" class="row"></div>
 </div>
 
 </body>
