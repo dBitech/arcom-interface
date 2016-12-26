@@ -226,7 +226,8 @@ class Arcom(object):
 
   def restart(self, auth):
     self.authlog(auth, 'Restart')
-    return self.cmdSend(self.cfg.get('arcom commands', 'restart'))
+    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'restart'))
+    return True, 'Restarting...'
 
   def setDateTime(self, auth):
     self.authlog(auth, 'Set Date/Time')
