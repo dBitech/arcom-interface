@@ -59,7 +59,6 @@ class Arcom(object):
     self.cfg = cfg
     self.testing = opt.testing
     self.weblog = weblog.LogGoogle(cfg, opt.testing)
-    self.history = self.load_history(LOG_HISTORY_SIZE)
     self.arcomLock = threading.Lock()
     self.port1Lock = threading.Lock()
     self.port1Enabled = True
@@ -67,6 +66,7 @@ class Arcom(object):
     self.port3Bridged = True
     self.identity = cfg.get('arcom server', 'identity')
     self.autoEnableTime = None
+    self.load_history(LOG_HISTORY_SIZE)
     if not opt.testing:
       self.serialport = serial.Serial(
           port=opt.device,
@@ -107,9 +107,9 @@ class Arcom(object):
         log.error('dumping to %s: %s', historyFile, e)
 
   def load_history(self, num_entries):
-    """Read the last LOG_HISTORY_SIZE entries from log file
-       and return tuples of (time, call, string) to prime
-       the in memory log history.
+    """Read pickled entries from history file and initialize
+       self.history with tuples of (time, call, string).
+       Truncate to the max size.
        """
     log.debug('Loading max of %d log entries.', num_entries)
     try:

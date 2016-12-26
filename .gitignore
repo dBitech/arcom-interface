@@ -4,7 +4,10 @@ arcom-server.conf
 .arcom.conf
 arcom.log*
 arcom.commands
+arcom.history
 *.js
+\#*#
+.#*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
