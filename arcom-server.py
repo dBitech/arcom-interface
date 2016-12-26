@@ -40,7 +40,7 @@ logFormat = '%(levelname)-7s %(asctime)s %(threadName)s %(message)s'
 """
 logging.basicConfig(
     format=logFormat,
-    level=logging.ERROR,
+    level=logging.INFO,
 )
 """
 log = logging.getLogger('arcom')
@@ -91,6 +91,7 @@ class Arcom(object):
     server.register_function(self.getLog)
     server.register_function(self.getIdentity)
     server.register_function(self.logInterference)
+    server.register_function(self.setViolator)
 
   def authlog(self, auth, string, history=True, level=logging.INFO):
     """We log to a file and the in memory queue."""
@@ -99,7 +100,6 @@ class Arcom(object):
       self.history.append((time.time(), auth, string))
       while len(self.history) > LOG_HISTORY_SIZE:
         del self.history[0]
-
       try:
         with open(historyFile, "w") as f:
           pickle.dump(self.history, f)
@@ -117,6 +117,7 @@ class Arcom(object):
         self.history = pickle.load(f)
     except IOError as e:
       log.error('error loading %s: %s', historyFile, e)
+      self.history = []
     while len(self.history) > LOG_HISTORY_SIZE:
       del self.history[0]
 
@@ -265,7 +266,7 @@ class Arcom(object):
 
   def getIdentity(self, auth):
     """We always log this to record invocations of the client."""
-    self.authlog(auth, 'Identity')
+    self.authlog(auth, 'Identity (%s)' % self.identity)
     return self.identity
 
   def setViolator(self, auth, violator):
