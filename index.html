@@ -152,6 +152,11 @@
               if (result) callRPC("setDateTime", [call]);
           })
       });
+      $("#restart").bind('click', function (){
+          bootbox.confirm("Confirm restart?", function(result){
+              if (result) callRPC("restart", [call]);
+          })
+      });
       $("#getIdentity").bind('click', function (){callRPC("getIdentity", [call], setTitle)});
       $("#getStatus").bind('click', function (){callRPC("status", [call], setStatus)});
       $("#getLog").bind('click', function (){callRPC("getLog", [call, 10], listLog)});
