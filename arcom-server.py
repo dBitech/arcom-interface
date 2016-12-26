@@ -17,6 +17,7 @@ import optparse
 import logging
 import logging.handlers
 import os
+import pickle
 import signal
 import sys
 import threading
@@ -32,27 +33,19 @@ configDefaults = {
 }
 
 LOG_HISTORY_SIZE = 100
-arcomDebugFile = 'arcom.commands'
+debugFile = 'arcom.commands'
+historyFile = 'arcom.history'
 logFile = 'arcom.log'
 logFormat = '%(levelname)-7s %(asctime)s %(threadName)s %(message)s'
 """
 logging.basicConfig(
     format=logFormat,
-    level=logging.ERROR,
+    level=logging.INFO,
 )
 """
 log = logging.getLogger('arcom')
 log.addHandler(logging.handlers.RotatingFileHandler(
     logFile, maxBytes=512*1024, backupCount=5))
-
-def load_log_entries(num_entries):
-  """Read the last LOG_HISTORY_SIZE entries from log file
-     and return tuples of (time, call, string) to prime
-     the in memory log history.
-     """
-  #TODO(dpk): return log entries from log file
-  log.debug('Loading max of %d log entries.', num_entries)
-  return []
 
 
 class Arcom(object):
@@ -66,7 +59,7 @@ class Arcom(object):
     self.cfg = cfg
     self.testing = opt.testing
     self.weblog = weblog.LogGoogle(cfg, opt.testing)
-    self.log_entries = load_log_entries(LOG_HISTORY_SIZE)
+    self.history = self.load_history(LOG_HISTORY_SIZE)
     self.arcomLock = threading.Lock()
     self.port1Lock = threading.Lock()
     self.port1Enabled = True
@@ -84,7 +77,7 @@ class Arcom(object):
           timeout=.1
           )
     else:
-      self.serialport = open(arcomDebugFile, 'w')
+      self.serialport = open(debugFile, 'w')
 
   def register_functions(self, server):
     """Register externally callable methods with XMLRPC server."""
@@ -98,21 +91,43 @@ class Arcom(object):
     server.register_function(self.getLog)
     server.register_function(self.getIdentity)
     server.register_function(self.logInterference)
+    server.register_function(self.setViolator)
 
   def authlog(self, auth, string, history=True, level=logging.INFO):
     """We log to a file and the in memory queue."""
     log.log(level, '[%s] %s', auth, string)
     if history:
-      self.log_entries.append((time.time(), auth, string))
-      while len(self.log_entries) > LOG_HISTORY_SIZE:
-        del self.log_entries[0]
+      self.history.append((time.time(), auth, string))
+      while len(self.history) > LOG_HISTORY_SIZE:
+        del self.history[0]
+      try:
+        with open(historyFile, "w") as f:
+          pickle.dump(self.history, f)
+      except IOError as e:
+        log.error('dumping to %s: %s', historyFile, e)
+
+  def load_history(self, num_entries):
+    """Read the last LOG_HISTORY_SIZE entries from log file
+       and return tuples of (time, call, string) to prime
+       the in memory log history.
+       """
+    log.debug('Loading max of %d log entries.', num_entries)
+    try:
+      with open(historyFile) as f:
+        self.history = pickle.load(f)
+    except IOError as e:
+      log.error('error loading %s: %s', historyFile, e)
+      self.history = []
+    while len(self.history) > LOG_HISTORY_SIZE:
+      del self.history[0]
+
 
   def cmdSend(self, command):
     """Sends one command to the controller after clearing stream.
        This interaction with the Arcom controller is protected
        by a lock since we have some asynchronous activites in
        separate threads (like re-enabling after a timeout).
-    """
+       """
     status = False
 
     def clrBuff():
@@ -247,11 +262,11 @@ class Arcom(object):
   def getLog(self, auth, num_entries):
     """Non-Standard: returns an array of strings, possibly empty"""
     self.authlog(auth, "Log Request - %d entries" % num_entries)
-    return self.log_entries[-num_entries:]
+    return self.history[-num_entries:]
 
   def getIdentity(self, auth):
     """We always log this to record invocations of the client."""
-    self.authlog(auth, 'Identity')
+    self.authlog(auth, 'Identity (%s)' % self.identity)
     return self.identity
 
   def setViolator(self, auth, violator):
@@ -297,12 +312,6 @@ def main():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
     log.addHandler(handler)
-
-  """#TODO(dpk): reset maxBytes to 1M
-  handler = logging.handlers.RotatingFileHandler(
-      logFile, maxBytes=1*1024, backupCount=5)
-  log.addHandler(handler)
-  """
 
   # More than a pidfile, we use locking to ensure exclusive access.
   if opt.pidfile:
