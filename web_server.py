@@ -6,8 +6,6 @@ import hashlib
 import logging
 import ssl
 
-PASSWD_FILE = 'arcom.passwd'
-
 try:                 # Python 3
   from http.server import (SimpleHTTPRequestHandler)
   from socketserver import ThreadingMixIn
@@ -20,26 +18,37 @@ except ImportError:  # Python 2
                                   SimpleXMLRPCRequestHandler)
 
 log = logging.getLogger('arcom')
+PASSWD_FILE = 'arcom.passwd'
 
-def valid_auth(string):
-  """Validate that user:hash is a valid credential."""
-  authtype, value = string.split(' ')
-  log.debug('Authenticating %s and "%s"', authtype, value)
-  if authtype == 'Basic':
-    value = base64.b64decode(value)
-    user1, password = value.split(':')
-    hash1 = hashlib.sha224('arcom'+user1+password).hexdigest()
-    #log.debug('Authenticating %s with %s (%s)', user1, password, hash1)
+
+class BasicAuthorizor(object):
+  """Implement validation for basic auth with cache."""
+  def __init__(self):
+    """Read in authorized hashs and store in memory."""
+    self.valid_users = {}
     try:
       for line in open(PASSWD_FILE, "r"):
-        user2, hash2 = line.strip().split(':')
-        #log.debug('Line: %s : %s', user2, hash2)
-        if user1 == user2 and hash1 == hash2:
-          log.info('Login succeeded for %s', user1)
-          return True
+        user, password_hash = line.strip().split(':')
+        self.valid_users[user] = password_hash
     except IOError, e:
       log.error('error processing %s: %s', PASSWD_FILE, e)
-  return False
+    
+  def valid_auth(self, string):
+    """Validate that user:hash is a valid credential."""
+    authtype, value = string.split(' ')
+    log.debug('Authenticating %s and "%s"', authtype, value)
+    if authtype == 'Basic':
+      value = base64.b64decode(value)
+      user, password = value.split(':')
+      password_hash = hashlib.sha224('arcom'+user+password).hexdigest()
+      #log.debug('Authenticating %s with %s (%s)', user, password, hash1)
+      if user in self.valid_users and self.valid_users[user] == password_hash:
+        log.info('Login succeeded for %s', user)
+        return True
+    return False
+
+
+authorizor = BasicAuthorizor()
 
 
 class ArcomWebServer(ThreadingMixIn, SimpleXMLRPCServer):
@@ -77,7 +86,7 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
       log.debug('do_GET: No auth received')
       self.do_AUTHHEAD()
       self.wfile.write('No auth received')
-    elif valid_auth(self.headers.getheader('Authorization')):
+    elif authorizor.valid_auth(self.headers.getheader('Authorization')):
       SimpleHTTPRequestHandler.do_GET(self)
     else:
       log.info('do_GET: invalid auth')
@@ -94,7 +103,7 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
       log.debug('do_POST: No auth received')
       self.do_AUTHHEAD()
       self.wfile.write('No auth received')
-    elif valid_auth(self.headers.getheader('Authorization')):
+    elif authorizor.valid_auth(self.headers.getheader('Authorization')):
       SimpleXMLRPCRequestHandler.do_POST(self)
     else:
       log.info('do_POST: invalid auth')
@@ -105,7 +114,7 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
 
 def run_server(arcom, opt):
   """Creat and run the core XMLRPC webserver."""
-  server = ArcomWebServer(('', opt.port), ArcomAuthorizingRequestHandler)
+  server = ArcomWebServer(('', opt.port), ArcomAuthorizingRequestHandler, allow_none=True)
   server.socket = ssl.wrap_socket(
       server.socket,
       keyfile="key.pem",

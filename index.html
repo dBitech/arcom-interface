@@ -15,32 +15,9 @@
     var call = "Unknown";
     var place = "Unknown";
 
-    function updateResponse(response, status, jqXHR) {
-      var tuple = response[0];
-      setResponse('RPC ' + status + ': Command ' + tuple[0] + ': ' + tuple[1]);
-    }
-
-    function setResponse(text) {
-      $("#response").html('<div class="well well-sm">' + text + '</div>');
-    }
-
-    function callRPC(func, params, callback){
-      var rpcURL = "https:/RPC2";
-
-      if (!callback) callback = updateResponse;
-
-      $.xmlrpc({
-        url: rpcURL,
-        methodName: func,
-        params: params,
-        success: callback,
-        error: function(jqXHR, status, error) { alert("RPC FAIL: "+func) }
-      });
-    };
-
     function setTitle(response, status, jqXHR){
       var identity = response;
-      $("#title").html('<h3>Repeater Control - '+identity+'</h3>');
+      $("#title").html('Repeater Control - '+identity);
     }
 
     function updateStatus(response, status, jqXHR){
@@ -48,12 +25,16 @@
       callRPC("status", [call], setStatus);
     }
 
+    function setStatusTitle(){
+      $("#statusTitle").html("Operator: " + $.cookie("arcom.call") +
+                             " @ " + $.cookie("arcom.location"));
+    }
+
     function setStatus(response, status, jqXHR){
       var html = '';
       var obj = response[0]
 
-      $("#statusTitle").html("<h4>Status (" +  $.cookie("arcom.call") +
-                             " @ " + $.cookie("arcom.location") + ")</h4>");
+      setStatusTitle();
       html = '<table class=\"table table-condensed\"><tbody>'
       for (var item in obj) {
 	if (item == "auto-enable") {
@@ -66,18 +47,41 @@
       $("#status-content").html(html);
     }
 
+    function callRPC(func, params, callback){
+      var rpcURL = "https:/RPC2";
+
+      if (!callback) callback = updateResponse;
+
+      $.xmlrpc({
+        url: rpcURL,
+        methodName: func,
+        params: params,
+        success: callback,
+        error: function(jqXHR, status, error) { alert("RPC FAIL: " + func + ": " + status + ": " + error) }
+      });
+    };
+
+    function updateResponse(response, status, jqXHR) {
+      var tuple = response[0];
+      setResponse('RPC ' + status + ': Command ' + tuple[0] + ': ' + tuple[1]);
+    }
+
+    function setResponse(text) {
+      $("#response").html('<div class="well well-sm">' + text + '</div>');
+    }
+
     function listLog(response, status, jqXHR){
       var html = '';
       var obj = response[0]
 
-      html = '<table class=\"table table-condensed\"><tbody>'
+      html = '<table class=\"table table-condensed\"><tbody>';
       for (var item in obj) {
 	var entry = obj[item];
-        html += "<tr><td>" + Date(entry[0].toFixed(0)*1000) + "</td><td>" +
+	date = new Date(entry[0]*1000);
+        html += "<tr><td>" + date + "</td><td>" +
                 entry[1] + "</td><td>" + entry[2] + "</td></tr>";
       }
-      html += "</tbody></table>";
-      $("#response").html(html);
+      $("#response").html(html + "</tbody></table>");
     }
 
     function disableAndLog(call, mins){
@@ -86,10 +90,11 @@
     }
 
     function checkCookies(){
-      if ($.cookie("arcom.call") == "" || $.cookie("arcom.location") == "")
+      if ($.cookie("arcom.call") == null || $.cookie("arcom.location") == null)
         setCookies();
       call = $.cookie("arcom.call");
       place = $.cookie("arcom.location");
+      setStatusTitle();
     }
 
     function setCookies(){
@@ -102,6 +107,7 @@
             title: "What is your location? (e.g. grid square)",
             callback: function(result){
               if (result != null) $.cookie("arcom.location", result, { expires: 365 });
+              setStatusTitle();
               setResponse('Call=' + $.cookie("arcom.call") +
                           '  Location=' + $.cookie("arcom.location"));
             }
@@ -111,6 +117,7 @@
     }
 
     $(document).ready(function(){
+      checkCookies();
       callRPC("getIdentity", [call], setTitle);
       callRPC("status", [call], setStatus);
       $("#port1Disable5").bind('click', function (){
@@ -172,8 +179,7 @@
             }
          });
       });
-      $("#setCookies").bind('click', function (){setCookies()});
-      checkCookies();
+      $("#setCookies").bind('click', function (){ setCookies(); });
     })
   </script>
 </head>
@@ -181,8 +187,8 @@
 <body>
 <div class="container">
   <div id="header" class="row">
-    <div id="title"><h3>Repeater Control</h3></div>
-    <div id="statusTitle"<h4>Status</h4></div>
+    <h3><div id="title"><h3>Repeater Control</div></h3>
+    <h4><div id="statusTitle"Control Op ...</div></h4>
     <div class="col-sm-4">
       <div id="status-content"></div>
     </div>
@@ -211,7 +217,7 @@
       <button type="button" class="btn btn-info"
 	      id="getStatus">Status</button><br>
       <button type="button" class="btn btn-info"
-	      id="getLog">Get Recent Activity</button><br>
+	      id="getLog">Recent Activity</button><br>
       <button type="button" class="btn btn-success"
 	      id="port1Enable">Port 1 Enable</button><br>
       <button type="button" class="btn btn-success"
