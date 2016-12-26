@@ -250,7 +250,7 @@ def main():
   p.add_option('--password', action='store', type='string', dest='password')
   p.set_defaults(
       host='localhost',
-      port=45000,
+      port=3333,
       user=os.environ["ARCOM_USER"],
       password=os.environ["ARCOM_PASSWORD"])
   opt, _ = p.parse_args()
