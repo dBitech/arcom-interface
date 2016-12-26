@@ -120,6 +120,7 @@ class Arcom(object):
       self.history = []
     while len(self.history) > LOG_HISTORY_SIZE:
       del self.history[0]
+    log.info('Loaded %d entries to history', len(self.history))
 
 
   def cmdSend(self, command):
@@ -261,7 +262,8 @@ class Arcom(object):
 
   def getLog(self, auth, num_entries):
     """Non-Standard: returns an array of strings, possibly empty"""
-    self.authlog(auth, "Log Request - %d entries" % num_entries)
+    self.authlog(auth, "Log Request - %d entries, returning %d" % (
+        num_entries, len(self.history[-num_entries:])))
     return self.history[-num_entries:]
 
   def getIdentity(self, auth):

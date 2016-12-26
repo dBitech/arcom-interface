@@ -74,14 +74,14 @@
       var html = '';
       var obj = response[0]
 
-      html = '<table class=\"table table-condensed\"><tbody>'
+      html = '<table class=\"table table-condensed\"><tbody>';
       for (var item in obj) {
 	var entry = obj[item];
-        html += "<tr><td>" + Date(entry[0].toFixed(0)*1000) + "</td><td>" +
+	date = new Date(entry[0]*1000);
+        html += "<tr><td>" + date + "</td><td>" +
                 entry[1] + "</td><td>" + entry[2] + "</td></tr>";
       }
-      html += "</tbody></table>";
-      $("#response").html(html);
+      $("#response").html(html + "</tbody></table>");
     }
 
     function disableAndLog(call, mins){

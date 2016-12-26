@@ -114,7 +114,7 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
 
 def run_server(arcom, opt):
   """Creat and run the core XMLRPC webserver."""
-  server = ArcomWebServer(('', opt.port), ArcomAuthorizingRequestHandler)
+  server = ArcomWebServer(('', opt.port), ArcomAuthorizingRequestHandler, allow_none=True)
   server.socket = ssl.wrap_socket(
       server.socket,
       keyfile="key.pem",
