@@ -226,7 +226,7 @@ class Arcom(object):
 
   def restart(self, auth):
     self.authlog(auth, 'Restart')
-    status, msg = self.cmdSend(self.cfg.get('arcom commands', 'restart'))
+    _, _ = self.cmdSend(self.cfg.get('arcom commands', 'restart'))
     return True, 'Restarting...'
 
   def setDateTime(self, auth):
@@ -253,6 +253,7 @@ class Arcom(object):
     """Non-Standard: returns dict"""
     self.authlog(auth, "Status Request", history=False, level=logging.DEBUG)
     status = {
+        'identity': self.identity,
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
         'testing': self.testing
@@ -267,6 +268,7 @@ class Arcom(object):
         num_entries, len(self.history[-num_entries:])))
     return self.history[-num_entries:]
 
+  #TODO(dpk): legacy method for compatibility with older clients (2016/12/26)
   def getIdentity(self, auth):
     """We always log this to record invocations of the client."""
     self.authlog(auth, 'Identity (%s)' % self.identity)

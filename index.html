@@ -12,13 +12,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
   <script src="https:/jquery.xmlrpc.js"></script>
   <script>
-    var call = "Unknown";
-    var place = "Unknown";
-
-    function setTitle(response, status, jqXHR){
-      var identity = response;
-      $("#title").html('Repeater Control - '+identity);
-    }
+    var call = null;
+    var place = null;
 
     function updateStatus(response, status, jqXHR){
       updateResponse(response, status, jqXHR);
@@ -37,7 +32,9 @@
       setStatusTitle();
       html = '<table class=\"table table-condensed\"><tbody>'
       for (var item in obj) {
-	if (item == "auto-enable") {
+	if (item == "identity") {
+          $("#title").html('Repeater Control - ' + obj[item]);
+	} else if (item == "auto-enable") {
 	  html += "<tr><td>" + item + "</td><td>" +
 	          Date(obj[item].toFixed(0)*1000) + "</td></tr>";
 	} else
@@ -50,6 +47,10 @@
     function callRPC(func, params, callback){
       var rpcURL = "https:/RPC2";
 
+      if (call == null || call == "" || place == null || place == "") {
+        setCookies();
+        return;
+      }
       if (!callback) callback = updateResponse;
 
       $.xmlrpc({
@@ -90,36 +91,14 @@
     }
 
     function checkCookies(){
-      if ($.cookie("arcom.call") == null || $.cookie("arcom.location") == null)
-        setCookies();
       call = $.cookie("arcom.call");
       place = $.cookie("arcom.location");
-      setStatusTitle();
-    }
-
-    function setCookies(){
-      bootbox.prompt({ 
-        size: "small",
-        title: "What is your call?",
-        callback: function(result){
-          if (result != null) $.cookie("arcom.call", result.toUpperCase(), { expires: 365 });
-          bootbox.prompt({
-            title: "What is your location? (e.g. grid square)",
-            callback: function(result){
-              if (result != null) $.cookie("arcom.location", result, { expires: 365 });
-              setStatusTitle();
-              setResponse('Call=' + $.cookie("arcom.call") +
-                          '  Location=' + $.cookie("arcom.location"));
-            }
-          });
-        }
-      });
+      if (call == null || call == "" || place == null || place == "") {
+        setCookies();
+      } else setStatusTitle();
     }
 
     $(document).ready(function(){
-      checkCookies();
-      callRPC("getIdentity", [call], setTitle);
-      callRPC("status", [call], setStatus);
       $("#port1Disable5").bind('click', function (){
           bootbox.confirm("Confirm disable?", function(result){
               if (result) disableAndLog(call, 300);
@@ -157,7 +136,6 @@
               if (result) callRPC("restart", [call]);
           })
       });
-      $("#getIdentity").bind('click', function (){callRPC("getIdentity", [call], setTitle)});
       $("#getStatus").bind('click', function (){callRPC("status", [call], setStatus)});
       $("#getLog").bind('click', function (){callRPC("getLog", [call, 10], listLog)});
       $("#logInterference").bind('click', function (){
@@ -184,10 +162,35 @@
             }
          });
       });
-      $("#setCookies").bind('click', function (){ setCookies(); });
+      $("#setCookies").bind('click', function (){ $("cookiesDialog").dialog("open"); });
+      $("cookiesDialog").dialog({
+          autoOpen: false,
+          title: 'Set Cookies Dialog'
+      });
+      $("#cookieDialogSet").bind('click', function (){
+        value = $("cookieDialogCall").val()
+        if (value != null && value != "") {
+          $.cookie("arcom.call", value.toUpperCase(), { expires: 365 });
+        }
+        value = $("cookieDialogLocation").val()
+        if (value != null && value != "") {
+          $.cookie("arcom.call", value.toUpperCase(), { expires: 365 });
+        }
+      });
+      checkCookies();
+      callRPC("status", [call], setStatus);
     })
   </script>
 </head>
+
+<div id="cookieDialog">
+  <form>
+    Call: <input type="text" id="cookieDialogCall" name="call"><br>
+    Location: <input type="text" id="cookieDialogLocation" name="location"><br>
+    <button type="button" id="cookieDialogSet">Set</button><br>
+    <input type="submit" value="Set">
+  </form>
+</div>
 
 <body>
 <div class="container">
