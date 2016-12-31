@@ -62,10 +62,11 @@ def interact(opt, cfg):
   if not re.match(r'[A-Za-z]+\d[A-Za-z]+', call):
     raise RuntimeError('Format error for call in .arcom.conf.')
   location = cfg.get('arcom', 'location')
-  identity = ''
-  while identity == '':
+  
+  while True:
     try:
-      identity = arcom.getIdentity(call)
+      status = arcom.status(call)
+      break
     except socket.error, e:
       print "Server error: %s, sleeping 5" % e
       sleep(5)
@@ -134,7 +135,7 @@ def interact(opt, cfg):
     """Render the menu."""
     #TODO(dpk): we should use curses library here?
     os.system('clear') # this is expensive.
-    print " ", 8 * "-", "%6.6s - Arcom RC210 Control" % identity, 8 * "-"
+    print " ", 8 * "-", "%6.6s - Arcom RC210 Control" % status["identity"], 8 * "-"
     printStatus(status)
     print " |", 44 * " ", "|"
     print " | 0.  Exit                                     |"
