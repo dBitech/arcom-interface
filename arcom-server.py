@@ -180,6 +180,11 @@ class Arcom(object):
     msg = 'Port 1 OFF'
     if interval:
       msg += ' (with %d second timer)' % interval
+    if self.enableTimer:
+      secs_left = int(self.autoEnableTime - time.time())
+      log.info('[%s] Timed disable already active (%d secs left)', auth, secs_left)
+      self.port1Lock.release()
+      return False, "Timed disable already active (%d secs left)" % secs_left
     self.authlog(auth, msg)
     status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port1Disable'))
     if status:
