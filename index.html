@@ -44,8 +44,8 @@
 	if (item == "identity") {
           $("#title").html('Repeater Control - ' + obj[item]);
 	} else if (item == "auto-enable") {
-	  html += "<tr><td>" + item + "</td><td>" +
-	          Date(obj[item].toFixed(0)*1000) + "</td></tr>";
+	  date = new Date(obj[item].toFixed(0)*1000)
+	  html += "<tr><td>" + item + "</td><td>" + date + "</td></tr>";
 	} else
           html += "<tr><td>" + item + "</td><td>" + obj[item] + "</td></tr>";
       }
@@ -95,9 +95,16 @@
       $("#response").html(html + "</tbody></table>");
     }
 
+    function logInterference(response, status, jqXHR){
+      var tuple = response[0];
+      if (status == "success" && tuple[0] == true) {
+        callRPC("logInterference", [call, place, disable_mins]);
+      } else updateResponse(response, status, jqXHR);
+    }
+
     function disableAndLog(call, mins){
+      disable_mins = mins;
       callRPC("port1Disable", [call, mins], updateBoth);
-      callRPC("logInterference", [call, place, mins]);
     }
 
     function checkCookies(){
@@ -179,11 +186,6 @@
       });
       $("#getStatus").bind('click', function (){ getStatus();});
       $("#getLog").bind('click', function (){callRPC("getLog", [call, 10], listLog)});
-      $("#logInterference").bind('click', function (){
-          bootbox.confirm("Confirm logging?", function(result){
-              if (result) callRPC("logInterference", [call, place, 300]);
-          })
-      });
       $("#setViolator").bind('click', function (){
           bootbox.prompt({
             title: "Select violator",
