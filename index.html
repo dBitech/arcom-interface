@@ -29,13 +29,11 @@
       var obj = response[0]
 
       if (call == null || call == "" || place == null || place == "") {
-        console.log("setStatus: invalid call/location");
         setResponse('Invalid: Call=' + $.cookie("arcom.call") +
                     '  Location=' + $.cookie("arcom.location"));
         $("#fullMenu").hide()
         return;
       }
-      console.log("setting status...");
       $("#fullMenu").show()
       $("#statusTitle").html("Operator: " + $.cookie("arcom.call") +
                              " @ " + $.cookie("arcom.location"));
@@ -57,7 +55,6 @@
       var rpcURL = "https:/RPC2";
 
       if (call == null || call == "" || place == null || place == "") {
-        console.log("calling setCallLoc()");
         setCallLoc();
         return;
       }
@@ -109,11 +106,9 @@
 
     function checkCookies(){
       if (call == null || call == "" || place == null || place == "") {
-        console.log("checkCookies not set.")
         setCallLoc();
         return false
       } else {
-        console.log("checkCookies OK.")
         getStatus();
         return true;
       }
