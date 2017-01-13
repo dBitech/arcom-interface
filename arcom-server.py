@@ -89,7 +89,6 @@ class Arcom(object):
     server.register_function(self.setDateTime)
     server.register_function(self.status)
     server.register_function(self.getLog)
-    server.register_function(self.getIdentity)
     server.register_function(self.logInterference)
     server.register_function(self.setViolator)
 
@@ -251,8 +250,9 @@ class Arcom(object):
     else:
       return status, msg
 
-  def logInterference(self, auth, location, minutes):
-    return self.weblog.log(auth, location, minutes)
+  def logInterference(self, auth, location, seconds):
+    self.authlog(auth, 'Log Interference %s, %d seconds' % (location, seconds))
+    return self.weblog.log(auth, location, seconds/60)
 
   def status(self, auth):
     """Non-Standard: returns dict"""
@@ -261,8 +261,9 @@ class Arcom(object):
         'identity': self.identity,
         'port1Enabled': self.port1Enabled,
         'port3Bridged': self.port3Bridged,
-        'testing': self.testing
         }
+    if self.testing:
+      status['testing'] = True
     if self.autoEnableTime:
       status['auto-enable'] = self.autoEnableTime
     return status
@@ -272,12 +273,6 @@ class Arcom(object):
     self.authlog(auth, "Log Request - %d entries, returning %d" % (
         num_entries, len(self.history[-num_entries:])))
     return self.history[-num_entries:]
-
-  #TODO(dpk): legacy method for compatibility with older clients (2016/12/26)
-  def getIdentity(self, auth):
-    """We always log this to record invocations of the client."""
-    self.authlog(auth, 'Identity (%s)' % self.identity)
-    return self.identity
 
   def setViolator(self, auth, violator):
     #TODO(dpk): implement violator setting

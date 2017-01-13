@@ -14,6 +14,7 @@
   <script>
     var call = $.cookie("arcom.call");
     var place = $.cookie("arcom.location");
+    var disable_secs = 0;
 
     function updateBoth(response, status, jqXHR){
       updateResponse(response, status, jqXHR);
@@ -95,13 +96,13 @@
     function logInterference(response, status, jqXHR){
       var tuple = response[0];
       if (status == "success" && tuple[0] == true) {
-        callRPC("logInterference", [call, place, disable_mins]);
+        callRPC("logInterference", [call, place, disable_secs], updateBoth);
       } else updateResponse(response, status, jqXHR);
     }
 
-    function disableAndLog(call, mins){
-      disable_mins = mins;
-      callRPC("port1Disable", [call, mins], updateBoth);
+    function disableAndLog(call, seconds){
+      disable_secs = seconds;
+      callRPC("port1Disable", [call, seconds], logInterference);
     }
 
     function checkCookies(){
