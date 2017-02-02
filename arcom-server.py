@@ -188,12 +188,12 @@ class Arcom(object):
     status, msg = self.cmdSend(self.cfg.get('arcom commands', 'port1Disable'))
     if status:
       self.port1Enabled = False
-    if interval > 0:
-      if not self.enableTimer:
-        log.info('[%s] Setting enable timer for %d seconds', auth, interval)
-        self.enableTimer = threading.Timer(interval, self.port1Enable, [auth, True])
-        self.enableTimer.start()
-        self.autoEnableTime = time.time() + float(interval)
+      if interval > 0:
+        if not self.enableTimer:
+          log.info('[%s] Setting enable timer for %d seconds', auth, interval)
+          self.enableTimer = threading.Timer(interval, self.port1Enable, [auth, True])
+          self.enableTimer.start()
+          self.autoEnableTime = time.time() + float(interval)
     self.port1Lock.release()
     return status, msg
 
