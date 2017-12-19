@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 """Arcom RC210 control - XMLRPC Server
 
    KD7DK/Doug, KG7AUL/CK 12/16
@@ -147,7 +147,7 @@ class Arcom(object):
     sleep(0.1)
     command = '1*' + command + '\r\n'
     log.debug(' Sending: %s', command)
-    self.serialport.write(command)
+    self.serialport.write(str(command))
     if self.testing:
       self.serialport.flush()
       self.arcomLock.release()
