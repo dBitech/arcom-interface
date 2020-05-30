@@ -31,9 +31,9 @@ class LogGoogle(object):
     self.form_data['entry.773252163'] = location
     self.form_data['entry.530211156'] = 'Yes - ' + str(minutes) + ' min'
     if self.testing:
-      print 'URL: %s' % self.url_base+'/formResponse'
-      print self.form_data
-      print 'User agent: %s' % self.user_agent
+      print ('URL: %s' % self.url_base+'/formResponse')
+      print (self.form_data)
+      print ('User agent: %s' % self.user_agent)
       return True, "Action NOT logged.  (Testing mode)"
 
     resp = requests.post(self.url_base+'/formResponse',

@@ -30,7 +30,7 @@ class BasicAuthorizor(object):
       for line in open(PASSWD_FILE, "r"):
         user, password_hash = line.strip().split(':')
         self.valid_users[user] = password_hash
-    except IOError, e:
+    except IOError as e:
       log.error('error processing %s: %s', PASSWD_FILE, e)
     
   def valid_auth(self, string):
@@ -39,8 +39,8 @@ class BasicAuthorizor(object):
     log.debug('Authenticating %s and "%s"', authtype, value)
     if authtype == 'Basic':
       value = base64.b64decode(value)
-      user, password = value.split(':')
-      password_hash = hashlib.sha224('arcom'+user+password).hexdigest()
+      user, password = value.split(b':')
+      password_hash = hashlib.sha224(('arcom'+user.decode()+password.decode()).encode()).hexdigest()
       #log.debug('Authenticating %s with %s (%s)', user, password, hash1)
       if user in self.valid_users and self.valid_users[user] == password_hash:
         log.info('Login succeeded for %s', user)
@@ -82,34 +82,34 @@ class ArcomAuthorizingRequestHandler(SimpleHTTPRequestHandler,
     """Add authentication to the XMLRPC handlers."""
     log.debug('do_GET: path %s', self.path)
     #print '  headers: %s' % self.headers
-    if self.headers.getheader('Authorization') is None:
+    if self.headers.get('Authorization') is None:
       log.debug('do_GET: No auth received')
       self.do_AUTHHEAD()
       self.wfile.write('No auth received')
-    elif authorizor.valid_auth(self.headers.getheader('Authorization')):
+    elif authorizor.valid_auth(self.headers.get('Authorization')):
       SimpleHTTPRequestHandler.do_GET(self)
     else:
       log.info('do_GET: invalid auth')
       self.do_AUTHHEAD()
       self.wfile.write('Not authenticated: ')
-      self.wfile.write(self.headers.getheader('Authorization'))
+      self.wfile.write(self.headers.get('Authorization'))
 
   def do_POST(self):
     """Add authentication to the XMLRPC handlers."""
     log.debug('do_POST: path %s', self.path)
-    log.debug('  content-length: %s', int(self.headers.getheader('content-length', 0)))
+    log.debug('  content-length: %s', int(self.headers.get('content-length', 0)))
     #print '  headers: %s' % self.headers
-    if self.headers.getheader('Authorization') is None:
+    if self.headers.get('Authorization') is None:
       log.debug('do_POST: No auth received')
       self.do_AUTHHEAD()
       self.wfile.write('No auth received')
-    elif authorizor.valid_auth(self.headers.getheader('Authorization')):
+    elif authorizor.valid_auth(self.headers.get('Authorization')):
       SimpleXMLRPCRequestHandler.do_POST(self)
     else:
       log.info('do_POST: invalid auth')
       self.do_AUTHHEAD()
       self.wfile.write('Not authenticated: ')
-      self.wfile.write(self.headers.getheader('Authorization'))
+      self.wfile.write(self.headers.get('Authorization'))
 
 
 def run_server(arcom, opt):

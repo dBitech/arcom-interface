@@ -2,7 +2,9 @@
 Python based UI and Server for controlling Arcom 210 Repeater Controller via Serial
 
 * Installation
-apt-get install python-configparser python-serial python-requests
+
+apt-get install python3 pip3
+pip3 install -r requirements.txt
 
 cp arcom-server.conf.sample arcom-server.conf
 Edit arcom-server.conf as needed

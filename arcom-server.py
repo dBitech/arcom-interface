@@ -1,4 +1,3 @@
-#!/usr/bin/python2
 """Arcom RC210 control - XMLRPC Server
 
    KD7DK/Doug, KG7AUL/CK 12/16
@@ -296,7 +295,7 @@ def main():
   p.add_option('--pidfile', action='store', type='string', dest='pidfile')
   p.add_option('--port', action='store', type='int', dest='port')
   p.add_option('--testing', action='store_true', dest='testing')
-  p.add_option('--verbose', action='store', type='int', dest='verbose')
+  p.add_option('--verbose', action='store', type='int', dest='verbose', default=0)
   p.add_option('-v', action='count', dest='verbose')
 
   p.set_defaults(device=cfg.get('arcom server', 'serialDevice'),
@@ -324,7 +323,7 @@ def main():
     f = open(opt.pidfile, 'w')
     try:
       fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except IOError, e:
+    except IOError as e:
       log.fatal('Unable to acquire lock on %s: %s', opt.pidfile, e)
       sys.exit(99)
     f.write("%d\n" % os.getpid())
