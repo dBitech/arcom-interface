@@ -17,4 +17,4 @@ Create a SSL key and put the key in pem.key
 Move or copy arcom.rc to /etc/init.d or integrate with your system startup processes.
 
 Reference: RCP Protocol and Serial Port Operations
-http://www.arcomcontrollers.com/images/documents/rc210/rcpprotocol.pdf
+https://www.arcomcontrollers.com/documents/rc210/rcpprotocol.pdf
